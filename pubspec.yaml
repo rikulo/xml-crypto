@@ -1,6 +1,6 @@
 name: xml_crypto
 version: 2.1.3
-description: Xml digital signature and encryption library for Dart
+description: Xml digital signature library for Dart
 homepage: https://github.com/rikulo/xml-crypto
 repository: https://github.com/rikulo/xml-crypto
 issue_tracker: https://github.com/rikulo/xml-crypto/issues
