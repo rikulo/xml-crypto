@@ -118,14 +118,14 @@ class SignedXml {
   final Map<String, dynamic> options;
   final String idMode;
   final references = <_Reference>[];
-  var id = 0;
+  var _id = 0;
   Uint8List? signingKey;
   late String signatureAlgorithm;
   KeyInfoProvider? _keyInfoProvider;
   late String canonicalizationAlgorithm;
   String _signedXml = '';
   String _signatureXml = '';
-  XmlNode? signatureNode;
+  XmlNode? _signatureNode;
   String signatureValue = '';
   String _originalXmlWithIds = '';
   final validationErrors = <String>[];
@@ -186,7 +186,7 @@ class SignedXml {
 
     final doc = XmlDocument.parse(xml);
 
-    if (!validateReferences(doc)) {
+    if (!_validateReferences(doc)) {
       if (callback == null) {
         return false;
       } else {
@@ -197,13 +197,13 @@ class SignedXml {
 
     if (callback == null) {
       //Synchronous flow
-      if (!validateSignatureValue(doc)) {
+      if (!_validateSignatureValue(doc)) {
         return false;
       }
       return true;
     } else {
       //Asynchronous flow
-      validateSignatureValue(doc, (Error? err, bool isValidSignature) {
+      _validateSignatureValue(doc, (Error? err, bool isValidSignature) {
         if (err != null) {
           validationErrors.add('invalid signature: the signature value $signatureValue is incorrect');
           callback(err);
@@ -215,8 +215,8 @@ class SignedXml {
     }
   }
 
-  String getCanonSignedInfoXml(XmlDocument doc) {
-    final signedInfo = findChilds(signatureNode!, 'SignedInfo');
+  String _getCanonSignedInfoXml(XmlDocument doc) {
+    final signedInfo = findChilds(_signatureNode!, 'SignedInfo');
     if (signedInfo.isEmpty) {
       throw ArgumentError('could not find SignedInfo element in the message');
     }
@@ -234,10 +234,10 @@ class SignedXml {
     final c14nOptions = <String, dynamic>{
       'ancestorNamespaces': ancestorNamespaces,
     };
-    return getCanonXml([canonicalizationAlgorithm], signedInfo.first, c14nOptions);
+    return _getCanonXml([canonicalizationAlgorithm], signedInfo.first, c14nOptions);
   }
 
-  String getCanonReferenceXml(XmlDocument doc, _Reference ref, XmlNode node) {
+  String _getCanonReferenceXml(XmlDocument doc, _Reference ref, XmlNode node) {
     // Search for ancestor namespaces before canonicalization.
     if (ref.transforms.isNotEmpty) {
       ref.ancestorNamespaces = findAncestorNs(doc, ref.xpath ?? '');
@@ -248,12 +248,12 @@ class SignedXml {
       'ancestorNamespaces': ref.ancestorNamespaces,
     };
 
-    return getCanonXml(ref.transforms, node, c14nOptions);
+    return _getCanonXml(ref.transforms, node, c14nOptions);
   }
 
-  bool validateSignatureValue(XmlDocument doc, [ValidateSignatureCallback? callback]) {
-    final signedInfoCanon = getCanonSignedInfoXml(doc);
-    final signer = findSignatureAlgorithm(signatureAlgorithm);
+  bool _validateSignatureValue(XmlDocument doc, [ValidateSignatureCallback? callback]) {
+    final signedInfoCanon = _getCanonSignedInfoXml(doc);
+    final signer = _findSignatureAlgorithm(signatureAlgorithm);
     final res = signer.verifySignature(signedInfoCanon, signingKey!, signatureValue, callback);
     if (!res && callback == null) {
       validationErrors.add('invalid signature: the signature value $signatureValue is incorrect');
@@ -261,13 +261,13 @@ class SignedXml {
     return res;
   }
 
-  void calculateSignatureValue(XmlDocument doc, [CalculateSignatureCallback? callback]) {
-    final signedInfoCanon = getCanonSignedInfoXml(doc);
-    final signer = findSignatureAlgorithm(signatureAlgorithm);
+  void _calculateSignatureValue(XmlDocument doc, [CalculateSignatureCallback? callback]) {
+    final signedInfoCanon = _getCanonSignedInfoXml(doc);
+    final signer = _findSignatureAlgorithm(signatureAlgorithm);
     signatureValue = signer.getSignature(signedInfoCanon, signingKey!, callback);
   }
 
-  SignatureAlgorithm findSignatureAlgorithm(String name) {
+  SignatureAlgorithm _findSignatureAlgorithm(String name) {
     final algo = signatureAlgorithms[name];
     if (algo != null) {
       return algo;
@@ -276,7 +276,7 @@ class SignedXml {
     }
   }
 
-  CanonicalizationAlgorithm findCanonicalizationAlgorithm(String name) {
+  CanonicalizationAlgorithm _findCanonicalizationAlgorithm(String name) {
     final algo = canonicalizationAlgorithms[name];
     if (algo != null) {
       return algo;
@@ -285,7 +285,7 @@ class SignedXml {
     }
   }
 
-  HashAlgorithm findHashAlgorithm(String name) {
+  HashAlgorithm _findHashAlgorithm(String name) {
     final algo = hashAlgorithms[name];
     if (algo != null) {
       return algo;
@@ -294,7 +294,7 @@ class SignedXml {
     }
   }
 
-  bool validateReferences(XmlDocument doc) {
+  bool _validateReferences(XmlDocument doc) {
     for (final ref in references) {
       final uri = ref.uri.startsWith('#') ? ref.uri.substring(1) : ref.uri;
       final elem = <XPathNode<XmlNode>>[];
@@ -331,8 +331,8 @@ class SignedXml {
         return false;
       }
 
-      final canonXml = getCanonReferenceXml(doc, ref, elem.first.node);
-      final hash = findHashAlgorithm(ref.digestAlgorithm);
+      final canonXml = _getCanonReferenceXml(doc, ref, elem.first.node);
+      final hash = _findHashAlgorithm(ref.digestAlgorithm);
       final digest = hash.getHash(canonXml);
       if (!_validateDigestValue(digest, ref.digestValue)) {
         validationErrors.add('invalid signature: for uri ${ref.uri}'
@@ -349,9 +349,9 @@ class SignedXml {
 
   void loadSignature(dynamic signatureNode) {
     if (signatureNode is String) {
-      this.signatureNode = signatureNode = XmlDocument.parse(signatureNode).rootElement;
+      _signatureNode = signatureNode = XmlDocument.parse(signatureNode).rootElement;
     } else {
-      this.signatureNode = signatureNode;
+      _signatureNode = signatureNode;
     }
 
     _signatureXml = signatureNode.toString();
@@ -373,7 +373,7 @@ class SignedXml {
     }
     
     for (final ref in refs.nodes) {
-      loadReference(ref.node);
+      _loadReference(ref.node);
     }
     
     signatureValue = findFirst(signatureNode, ".//*[local-name()='SignatureValue']/text()")
@@ -381,7 +381,7 @@ class SignedXml {
     keyInfo = XPath.xmlElement(signatureNode).query(".//*[local-name()='KeyInfo']").node?.node.toString();
   }
 
-  void loadReference(XmlNode ref) {
+  void _loadReference(XmlNode ref) {
     var nodes = findChilds(ref, 'DigestMethod');
     if (nodes.isEmpty) {
       throw ArgumentError('could not find DigestMethod in reference $ref');
@@ -524,8 +524,8 @@ class SignedXml {
     signatureAttrs.add('$xmlNsAttr="http://www.w3.org/2000/09/xmldsig#"');
 
     final signatureXml = StringBuffer('<${currentPrefix}Signature ${signatureAttrs.join(' ')}>')
-      ..write(createSignedInfo(doc, prefix))
-      ..write(getKeyInfo(prefix))
+      ..write(_createSignedInfo(doc, prefix))
+      ..write(_getKeyInfo(prefix))
       ..write('</${currentPrefix}Signature>');
 
     _originalXmlWithIds = doc.toString();
@@ -573,8 +573,8 @@ class SignedXml {
       }
     }
 
-    signatureNode = signatureDoc;
-    final signedInfoNodeQuery = findChilds(signatureNode!, 'SignedInfo');
+    _signatureNode = signatureDoc;
+    final signedInfoNodeQuery = findChilds(_signatureNode!, 'SignedInfo');
     if (signedInfoNodeQuery.isEmpty) {
       final err = ArgumentError('could not find SignedInfo element in the message');
       if (callback == null) {
@@ -588,21 +588,21 @@ class SignedXml {
 
     if (callback == null) {
       //Synchronous flow
-      calculateSignatureValue(doc);
+      _calculateSignatureValue(doc);
       final ch = signedInfoNode.parent?.children;
       if (ch != null) {
         final index = ch.indexOf(signedInfoNode) + 1;
         if (index < ch.length) {
-          ch.insert(index, createSignature(prefix));
+          ch.insert(index, _createSignature(prefix));
         } else {
-          ch.add(createSignature(prefix));
+          ch.add(_createSignature(prefix));
         }
       }
       _signatureXml = signatureDoc.toString();
       _signedXml = doc.toString();
     } else {
       //Asynchronous flow
-      calculateSignatureValue(doc, (err, signatureValue) {
+      _calculateSignatureValue(doc, (err, signatureValue) {
         if (err != null) {
           callback(err, null);
           return;
@@ -612,9 +612,9 @@ class SignedXml {
         if (ch != null) {
           final index = ch.indexOf(signedInfoNode) + 1;
           if (index < ch.length) {
-            ch.insert(index, createSignature(prefix));
+            ch.insert(index, _createSignature(prefix));
           } else {
-            ch.add(createSignature(prefix));
+            ch.add(_createSignature(prefix));
           }
         }
         _signatureXml = signatureDoc.toString();
@@ -624,7 +624,7 @@ class SignedXml {
     }
   }
 
-  String getKeyInfo(String? prefix) {
+  String _getKeyInfo(String? prefix) {
     final res = StringBuffer();
     var currentPrefix = prefix ?? '';
     if (currentPrefix.isNotEmpty) currentPrefix += ':';
@@ -639,7 +639,7 @@ class SignedXml {
   }
 
   /// Generate the Reference nodes (as part of the signature process)
-  String createReference(XmlDocument doc, String? prefix) {
+  String _createReference(XmlDocument doc, String? prefix) {
     final res = StringBuffer();
 
     prefix = prefix ?? '';
@@ -655,18 +655,18 @@ class SignedXml {
         if (ref.isEmptyUri) {
           res.write('<${prefix}Reference URI="">');
         } else {
-          final id = ensureHasId(node.node);
+          final id = _ensureHasId(node.node);
           ref.uri = id;
           res.write('<${prefix}Reference URI="#$id">');
         }
         res.write('<${prefix}Transforms>');
         for (final trans in ref.transforms) {
-          final transform = findCanonicalizationAlgorithm(trans);
+          final transform = _findCanonicalizationAlgorithm(trans);
           res.write('<${prefix}Transform Algorithm="${transform.algorithmName}" />');
         }
 
-        final canonXml = getCanonReferenceXml(doc, ref, node.node);
-        final digestAlgorithm = findHashAlgorithm(ref.digestAlgorithm);
+        final canonXml = _getCanonReferenceXml(doc, ref, node.node);
+        final digestAlgorithm = _findHashAlgorithm(ref.digestAlgorithm);
         res
           ..write('</${prefix}Transforms>')
           ..write('<${prefix}DigestMethod Algorithm="${digestAlgorithm.algorithmName}" />')
@@ -677,10 +677,10 @@ class SignedXml {
     return res.toString();
   }
 
-  String getCanonXml(List<String> transforms, XmlNode node, [Map<String, dynamic>? options]) {
+  String _getCanonXml(List<String> transforms, XmlNode node, [Map<String, dynamic>? options]) {
     options = options ?? {};
     if (options['defaultNsForPrefix'] == null) options['defaultNsForPrefix'] = defaultNsForPrefix;
-    options['signatureNode'] = signatureNode;
+    options['signatureNode'] = _signatureNode;
 
     dynamic canonXml = node.copy(); // Deep clone
     // Workaround: XmlPrefixName.namespaceUri will look up the namespace from the parent node
@@ -689,7 +689,7 @@ class SignedXml {
       canonXml.attachParent(node.parent!);
     }
     for (final t in transforms) {
-      final transform = findCanonicalizationAlgorithm(t);
+      final transform = _findCanonicalizationAlgorithm(t);
       canonXml = transform.process(canonXml, options);
       //TODO: currently transform.process may return either Node or String value (enveloped transformation returns Node, exclusive-canonicalization returns String).
       //This either needs to be more explicit in the API, or all should return the same.
@@ -702,7 +702,7 @@ class SignedXml {
     return canonXml.toString();
   }
 
-  String ensureHasId(XmlNode node) {
+  String _ensureHasId(XmlNode node) {
     XmlAttribute? attr;
     if (idMode == 'wssecurity') {
       attr = findAttr(node, 'Id', 'http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd');
@@ -716,7 +716,7 @@ class SignedXml {
     if (attr != null) return attr.value;
     
     //add the attribute
-    final id = '_${this.id++}';
+    final id = '_${_id++}';
     
     if (idMode == 'wssecurity') {
       node.setAttribute('xmlns:wsu',
@@ -732,22 +732,22 @@ class SignedXml {
   }
 
   /// Create the SignedInfo element
-  String createSignedInfo(XmlDocument doc, String? prefix) {
-    final transform = findCanonicalizationAlgorithm(canonicalizationAlgorithm);
-    final algo = findSignatureAlgorithm(signatureAlgorithm);
+  String _createSignedInfo(XmlDocument doc, String? prefix) {
+    final transform = _findCanonicalizationAlgorithm(canonicalizationAlgorithm);
+    final algo = _findSignatureAlgorithm(signatureAlgorithm);
     var currentPrefix = prefix ?? '';
     currentPrefix = currentPrefix.isNotEmpty ? '$currentPrefix:' : '';
 
     final res = StringBuffer('<${currentPrefix}SignedInfo>')
       ..write('<${currentPrefix}CanonicalizationMethod Algorithm="${transform.algorithmName}" />')
       ..write('<${currentPrefix}SignatureMethod Algorithm="${algo.algorithmName}" />')
-      ..write(createReference(doc, prefix))
+      ..write(_createReference(doc, prefix))
       ..write('</${currentPrefix}SignedInfo>');
     return res.toString();
   }
 
   /// Create the Signature element
-  XmlNode createSignature(String? prefix) {
+  XmlNode _createSignature(String? prefix) {
     var xmlNsAttr = 'xmlns';
 
     if (prefix != null) {
