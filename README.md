@@ -484,3 +484,7 @@ Visit this original author's [blog](https://webservices20.blogspot.com/) or [twi
 ## License
 
 This project is licensed under the [MIT License](https://opensource.org/licenses/MIT). See the [LICENSE](LICENSE) file for more info.
+
+## Who Uses
+
+* [Quire](https://quire.io) - a simple, collaborative, multi-level task management tool.
