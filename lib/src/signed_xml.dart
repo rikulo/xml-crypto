@@ -159,7 +159,7 @@ class SignedXml {
       ..addAll({'http://www.w3.org/2000/09/xmldsig#hmac-sha1': HMACSHA1()});
   }
 
-  bool checkSignature(String xml, [Function? callback]) {
+  bool checkSignature(String xml, [ValidateSignatureCallback? callback]) {
     validationErrors.clear();
     _signedXml = xml;
 
@@ -168,7 +168,7 @@ class SignedXml {
       if (callback == null) {
         throw err;
       } else {
-        callback(err);
+        callback(err, false);
         return false;
       }
     }
@@ -179,7 +179,7 @@ class SignedXml {
       if (callback == null) {
         throw err;
       } else {
-        callback(err);
+        callback(err, false);
         return false;
       }
     }
@@ -190,7 +190,7 @@ class SignedXml {
       if (callback == null) {
         return false;
       } else {
-        callback(ArgumentError('Could not validate references'));
+        callback(ArgumentError('Could not validate references'), false);
         return false;
       }
     }
@@ -206,7 +206,7 @@ class SignedXml {
       _validateSignatureValue(doc, (Error? err, bool isValidSignature) {
         if (err != null) {
           validationErrors.add('invalid signature: the signature value $signatureValue is incorrect');
-          callback(err);
+          callback(err, false);
         } else {
           callback(null, isValidSignature);
         }
