@@ -15,10 +15,7 @@ void main() {
       "</library>";
 
   //sign an xml document
-  signXml(xml,
-      "//*[local-name()='book']",
-      'client.pem',
-      'result.xml');
+  signXml(xml, "//*[local-name()='book']", 'client.pem', 'result.xml');
 
   print('xml signed successfully');
 
@@ -42,8 +39,7 @@ void signXml(String xml, String xpath, String key, String dest) {
 }
 
 bool validateXml(String xml, String key) {
-  final signature = XPath.xml(xml)
-      .query("/*/*[local-name()='Signature']").node;
+  final signature = XPath.xml(xml).query("/*/*[local-name()='Signature']").node;
   final sig = SignedXml()
     ..keyInfoProvider = FileKeyInfo(key)
     ..loadSignature(signature!.node);

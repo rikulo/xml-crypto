@@ -7,7 +7,12 @@ import 'package:xml/xml.dart';
 import 'signed_xml.dart';
 import 'utils.dart';
 
-const xmlData = [XmlNodeType.CDATA, XmlNodeType.DOCUMENT_TYPE, XmlNodeType.PROCESSING, XmlNodeType.TEXT];
+const xmlData = [
+  XmlNodeType.CDATA,
+  XmlNodeType.DOCUMENT_TYPE,
+  XmlNodeType.PROCESSING,
+  XmlNodeType.TEXT
+];
 
 class XmlNamespace {
   final String prefix;
@@ -19,7 +24,8 @@ class XmlNamespace {
   String toString() => '$prefix:$namespaceURI';
 
   @override
-  bool operator ==(Object other) => identical(this, other) ||
+  bool operator ==(Object other) =>
+      identical(this, other) ||
       other is XmlNamespace &&
           runtimeType == other.runtimeType &&
           prefix == other.prefix &&
@@ -51,8 +57,7 @@ class C14nCanonicalization implements CanonicalizationAlgorithm<String> {
   }
 
   int nsCompare(XmlNamespace a, XmlNamespace b) {
-    final attr1 = a.prefix,
-      attr2 = b.prefix;
+    final attr1 = a.prefix, attr2 = b.prefix;
     if (attr1 == attr2) return 0;
     return attr1.compareTo(attr2);
   }
@@ -73,12 +78,17 @@ class C14nCanonicalization implements CanonicalizationAlgorithm<String> {
     attrListToRender.sort(attrCompare);
 
     return attrListToRender
-        .map((attr) => ' ${attr.name.qualified}="${encodeSpecialCharactersInAttribute(attr.value)}"')
+        .map((attr) =>
+            ' ${attr.name.qualified}="${encodeSpecialCharactersInAttribute(attr.value)}"')
         .join('');
   }
 
-  RenderNsResult _renderNs(XmlElement node, List<String> prefixesInScope, String defaultNs,
-      Map<String, String> defaultNsForPrefix, List<XmlNamespace> ancestorNamespaces) {
+  RenderNsResult _renderNs(
+      XmlElement node,
+      List<String> prefixesInScope,
+      String defaultNs,
+      Map<String, String> defaultNsForPrefix,
+      List<XmlNamespace> ancestorNamespaces) {
     final res = <String>[];
     var newDefaultNs = defaultNs;
     final currNs = node.name.namespaceUri ?? '';
@@ -88,7 +98,8 @@ class C14nCanonicalization implements CanonicalizationAlgorithm<String> {
     final prefix = node.name.prefix;
     if (prefix != null) {
       if (!prefixesInScope.contains(prefix)) {
-        nsListToRender.add(XmlNamespace(prefix, node.name.namespaceUri ?? defaultNsForPrefix[prefix]));
+        nsListToRender.add(XmlNamespace(
+            prefix, node.name.namespaceUri ?? defaultNsForPrefix[prefix]));
         prefixesInScope.add(prefix);
       }
     } else if (defaultNs != currNs) {
@@ -110,7 +121,10 @@ class C14nCanonicalization implements CanonicalizationAlgorithm<String> {
 
       //handle all prefixed attributes that are not xmlns definitions and where
       //the prefix is not defined already
-      if (prefix != null && !prefixesInScope.contains(prefix) && prefix != 'xmlns' && prefix != 'xml') {
+      if (prefix != null &&
+          !prefixesInScope.contains(prefix) &&
+          prefix != 'xmlns' &&
+          prefix != 'xml') {
         nsListToRender.add(XmlNamespace(prefix, attr.name.namespaceUri));
         prefixesInScope.add(prefix);
       }
@@ -140,8 +154,12 @@ class C14nCanonicalization implements CanonicalizationAlgorithm<String> {
     return RenderNsResult(res.join(''), newDefaultNs);
   }
 
-  String _processInner(XmlNode node, List<String> prefixesInScope, String defaultNs,
-      Map<String, String> defaultNsForPrefix, List<XmlNamespace> ancestorNamespaces) {
+  String _processInner(
+      XmlNode node,
+      List<String> prefixesInScope,
+      String defaultNs,
+      Map<String, String> defaultNsForPrefix,
+      List<XmlNamespace> ancestorNamespaces) {
     if (node.nodeType == XmlNodeType.COMMENT) {
       return renderComment(node);
     }
@@ -152,12 +170,20 @@ class C14nCanonicalization implements CanonicalizationAlgorithm<String> {
 
     if (node is XmlElement) {
       final tagName = node.name.qualified,
-        ns = _renderNs(node, prefixesInScope, defaultNs, defaultNsForPrefix, ancestorNamespaces),
-        res = ['<', tagName, ns.rendered, renderAttrs(node, ns.newDefaultNs), '>'];
+          ns = _renderNs(node, prefixesInScope, defaultNs, defaultNsForPrefix,
+              ancestorNamespaces),
+          res = [
+            '<',
+            tagName,
+            ns.rendered,
+            renderAttrs(node, ns.newDefaultNs),
+            '>'
+          ];
 
       for (final child in node.children) {
         final pfxCopy = prefixesInScope.toList();
-        res.add(_processInner(child, pfxCopy, ns.newDefaultNs, defaultNsForPrefix, <XmlNamespace>[]));
+        res.add(_processInner(child, pfxCopy, ns.newDefaultNs,
+            defaultNsForPrefix, <XmlNamespace>[]));
       }
 
       res.add('</$tagName>');
@@ -175,8 +201,7 @@ class C14nCanonicalization implements CanonicalizationAlgorithm<String> {
         isAfterDocument = false;
 
     if (isOutsideDocument) {
-      XmlNode? nextNode = node,
-          previousNode = node;
+      XmlNode? nextNode = node, previousNode = node;
 
       while (nextNode != null) {
         if (nextNode == node.document?.rootElement) {
@@ -197,16 +222,23 @@ class C14nCanonicalization implements CanonicalizationAlgorithm<String> {
       }
     }
 
-    return (isAfterDocument ? '\n' : '') + '<!--' + encodeSpecialCharactersInText(node.text) + '-->' + (isBeforeDocument ? '\n' : '');
+    return (isAfterDocument ? '\n' : '') +
+        '<!--' +
+        encodeSpecialCharactersInText(node.text) +
+        '-->' +
+        (isBeforeDocument ? '\n' : '');
   }
 
   @override
   String process(XmlNode node, [Map<String, dynamic> options = const {}]) {
     final defaultNs = options['defaultNs'] as String? ?? '';
-    final defaultNsForPrefix = options['defaultNsForPrefix'] as Map<String, String>? ?? {};
-    final ancestorNamespaces = options['ancestorNamespaces'] as List<XmlNamespace>? ?? [];
+    final defaultNsForPrefix =
+        options['defaultNsForPrefix'] as Map<String, String>? ?? {};
+    final ancestorNamespaces =
+        options['ancestorNamespaces'] as List<XmlNamespace>? ?? [];
 
-    return _processInner(node, [], defaultNs, defaultNsForPrefix, ancestorNamespaces);
+    return _processInner(
+        node, [], defaultNs, defaultNsForPrefix, ancestorNamespaces);
   }
 
   @override
@@ -218,5 +250,6 @@ class C14nCanonicalizationWithComments extends C14nCanonicalization {
   bool get includeComments => true;
 
   @override
-  String get algorithmName => 'http://www.w3.org/TR/2001/REC-xml-c14n-20010315#WithComments';
+  String get algorithmName =>
+      'http://www.w3.org/TR/2001/REC-xml-c14n-20010315#WithComments';
 }

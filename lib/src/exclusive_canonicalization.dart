@@ -14,7 +14,8 @@ class ExclusiveCanonicalization extends C14nCanonicalization {
   @override
   String get algorithmName => 'http://www.w3.org/2001/10/xml-exc-c14n#';
 
-  bool isPrefixInScope(List<XmlNamespace> prefixesInScope, String prefix, String? namespaceURI) {
+  bool isPrefixInScope(
+      List<XmlNamespace> prefixesInScope, String prefix, String? namespaceURI) {
     var ret = false;
     for (final pf in prefixesInScope) {
       if (pf.prefix == prefix && pf.namespaceURI == namespaceURI) {
@@ -25,8 +26,12 @@ class ExclusiveCanonicalization extends C14nCanonicalization {
     return ret;
   }
 
-  RenderNsResult _renderNs(XmlElement node, List<XmlNamespace> prefixesInScope, String defaultNs,
-      Map<String, String> defaultNsForPrefix, List<String> inclusiveNamespacesPrefixList) {
+  RenderNsResult _renderNs(
+      XmlElement node,
+      List<XmlNamespace> prefixesInScope,
+      String defaultNs,
+      Map<String, String> defaultNsForPrefix,
+      List<String> inclusiveNamespacesPrefixList) {
     final res = <String>[];
     var newDefaultNs = defaultNs;
     final currNs = node.name.namespaceUri ?? '';
@@ -35,8 +40,10 @@ class ExclusiveCanonicalization extends C14nCanonicalization {
     //handle the namespaceof the node itself
     final prefix = node.name.prefix;
     if (prefix != null) {
-      if (!isPrefixInScope(prefixesInScope, prefix, node.name.namespaceUri ?? defaultNsForPrefix[prefix])) {
-        final ns = XmlNamespace(prefix, node.name.namespaceUri ?? defaultNsForPrefix[prefix]);
+      if (!isPrefixInScope(prefixesInScope, prefix,
+          node.name.namespaceUri ?? defaultNsForPrefix[prefix])) {
+        final ns = XmlNamespace(
+            prefix, node.name.namespaceUri ?? defaultNsForPrefix[prefix]);
         nsListToRender.add(ns);
         prefixesInScope.add(ns);
       }
@@ -53,8 +60,8 @@ class ExclusiveCanonicalization extends C14nCanonicalization {
 
       //handle all prefixed attributes that are included in the prefix list and where
       //the prefix is not defined already
-      if (!isPrefixInScope(prefixesInScope, attr.name.local, attr.value)
-          && inclusiveNamespacesPrefixList.contains(attr.name.local)) {
+      if (!isPrefixInScope(prefixesInScope, attr.name.local, attr.value) &&
+          inclusiveNamespacesPrefixList.contains(attr.name.local)) {
         final ns = XmlNamespace(attr.name.local, attr.value);
         nsListToRender.add(ns);
         prefixesInScope.add(ns);
@@ -62,7 +69,9 @@ class ExclusiveCanonicalization extends C14nCanonicalization {
 
       //handle all prefixed attributes that are not xmlns definitions and where
       //the prefix is not defined already
-      if (!isPrefixInScope(prefixesInScope, prefix, attr.name.namespaceUri) && prefix != "xmlns" && prefix != "xml") {
+      if (!isPrefixInScope(prefixesInScope, prefix, attr.name.namespaceUri) &&
+          prefix != "xmlns" &&
+          prefix != "xml") {
         final ns = XmlNamespace(prefix, attr.name.namespaceUri);
         nsListToRender.add(ns);
         prefixesInScope.add(ns);
@@ -79,8 +88,12 @@ class ExclusiveCanonicalization extends C14nCanonicalization {
     return RenderNsResult(res.join(''), newDefaultNs);
   }
 
-  String _processInner(XmlNode node, List<XmlNamespace> prefixesInScope, String defaultNs,
-      Map<String, String> defaultNsForPrefix, List<String> inclusiveNamespacesPrefixList) {
+  String _processInner(
+      XmlNode node,
+      List<XmlNamespace> prefixesInScope,
+      String defaultNs,
+      Map<String, String> defaultNsForPrefix,
+      List<String> inclusiveNamespacesPrefixList) {
     if (node.nodeType == XmlNodeType.COMMENT) {
       return renderComment(node);
     }
@@ -91,12 +104,20 @@ class ExclusiveCanonicalization extends C14nCanonicalization {
 
     if (node is XmlElement) {
       final tagName = node.name.qualified,
-          ns = _renderNs(node, prefixesInScope, defaultNs, defaultNsForPrefix, inclusiveNamespacesPrefixList),
-          res = ['<', tagName, ns.rendered, renderAttrs(node, ns.newDefaultNs), '>'];
+          ns = _renderNs(node, prefixesInScope, defaultNs, defaultNsForPrefix,
+              inclusiveNamespacesPrefixList),
+          res = [
+            '<',
+            tagName,
+            ns.rendered,
+            renderAttrs(node, ns.newDefaultNs),
+            '>'
+          ];
 
       for (final child in node.children) {
         final pfxCopy = prefixesInScope.toList();
-        res.add(_processInner(child, pfxCopy, ns.newDefaultNs, defaultNsForPrefix, inclusiveNamespacesPrefixList));
+        res.add(_processInner(child, pfxCopy, ns.newDefaultNs,
+            defaultNsForPrefix, inclusiveNamespacesPrefixList));
       }
 
       res.add('</$tagName>');
@@ -107,13 +128,16 @@ class ExclusiveCanonicalization extends C14nCanonicalization {
 
   @override
   String process(XmlNode node, [Map<String, dynamic> options = const {}]) {
-    var inclusiveNamespacesPrefixList = options['inclusiveNamespacesPrefixList'] ?? <String>[];
+    var inclusiveNamespacesPrefixList =
+        options['inclusiveNamespacesPrefixList'] ?? <String>[];
     final defaultNs = options['defaultNs'] as String? ?? '';
-    final defaultNsForPrefix = options['defaultNsForPrefix'] as Map<String, String>? ?? {};
+    final defaultNsForPrefix =
+        options['defaultNsForPrefix'] as Map<String, String>? ?? {};
     if (inclusiveNamespacesPrefixList is String) {
       inclusiveNamespacesPrefixList = inclusiveNamespacesPrefixList.split(' ');
     }
-    final ancestorNamespaces = options['ancestorNamespaces'] as List<XmlNamespace>? ?? [];
+    final ancestorNamespaces =
+        options['ancestorNamespaces'] as List<XmlNamespace>? ?? [];
 
     /**
      * If the inclusiveNamespacesPrefixList has not been explicitly provided then look it up in CanonicalizationMethod/InclusiveNamespaces
@@ -121,9 +145,11 @@ class ExclusiveCanonicalization extends C14nCanonicalization {
     if (inclusiveNamespacesPrefixList.isEmpty) {
       final canonicalizationMethod = findChilds(node, 'CanonicalizationMethod');
       if (canonicalizationMethod.isNotEmpty) {
-        final inclusiveNamespaces = findChilds(canonicalizationMethod[0], 'InclusiveNamespaces');
+        final inclusiveNamespaces =
+            findChilds(canonicalizationMethod[0], 'InclusiveNamespaces');
         if (inclusiveNamespaces.isNotEmpty) {
-          inclusiveNamespacesPrefixList = inclusiveNamespaces[0].getAttribute('PrefixList')?.split(' ');
+          inclusiveNamespacesPrefixList =
+              inclusiveNamespaces[0].getAttribute('PrefixList')?.split(' ');
         }
       }
     }
@@ -133,7 +159,8 @@ class ExclusiveCanonicalization extends C14nCanonicalization {
      */
     if (inclusiveNamespacesPrefixList != null) {
       final prefixList = inclusiveNamespacesPrefixList is List
-          ? inclusiveNamespacesPrefixList : inclusiveNamespacesPrefixList.split(' ');
+          ? inclusiveNamespacesPrefixList
+          : inclusiveNamespacesPrefixList.split(' ');
       for (String prefix in prefixList) {
         for (final ancestorNamespace in ancestorNamespaces) {
           if (prefix == ancestorNamespace.prefix) {
@@ -144,7 +171,8 @@ class ExclusiveCanonicalization extends C14nCanonicalization {
       }
     }
 
-    return _processInner(node, <XmlNamespace>[], defaultNs, defaultNsForPrefix, inclusiveNamespacesPrefixList);
+    return _processInner(node, <XmlNamespace>[], defaultNs, defaultNsForPrefix,
+        inclusiveNamespacesPrefixList);
   }
 }
 
@@ -153,5 +181,6 @@ class ExclusiveCanonicalizationWithComments extends ExclusiveCanonicalization {
   bool get includeComments => true;
 
   @override
-  String get algorithmName => 'http://www.w3.org/2001/10/xml-exc-c14n#WithComments';
+  String get algorithmName =>
+      'http://www.w3.org/2001/10/xml-exc-c14n#WithComments';
 }
