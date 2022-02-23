@@ -748,8 +748,9 @@ class SignedXml {
   String _getCanonXml(List<String> transforms, XmlNode node,
       [Map<String, dynamic>? options]) {
     options = options ?? {};
-    if (options['defaultNsForPrefix'] == null)
+    if (options['defaultNsForPrefix'] == null) {
       options['defaultNsForPrefix'] = defaultNsForPrefix;
+    }
     options['signatureNode'] = _signatureNode;
 
     dynamic canonXml = node.copy(); // Deep clone
