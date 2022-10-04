@@ -237,8 +237,13 @@ class C14nCanonicalization implements CanonicalizationAlgorithm<String> {
     final ancestorNamespaces =
         options['ancestorNamespaces'] as List<XmlNamespace>? ?? [];
 
-    return _processInner(
-        node, [], defaultNs, defaultNsForPrefix, ancestorNamespaces);
+    final prefixesInScope = <String>[];
+    for (var i = 0; i < ancestorNamespaces.length; i++) {
+      prefixesInScope.add(ancestorNamespaces[i].prefix);
+    }
+
+    return _processInner(node, prefixesInScope, defaultNs, defaultNsForPrefix,
+        ancestorNamespaces);
   }
 
   @override

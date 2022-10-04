@@ -167,5 +167,13 @@ void main() {
 
       testC14nCanonicalization(xml, xpath, expected);
     });
+
+    test('Don\'t declare an attribute\'s namespace prefix if in scope from parent', () {
+      final xml = "<root xmlns:aaa='bbb'><child1><child2><child3 aaa:foo='bar'></child3></child2></child1></root>";
+      final xpath = "/root/child1";
+      final expected = '<child1 xmlns:aaa="bbb"><child2><child3 aaa:foo="bar"></child3></child2></child1>';
+
+      testC14nCanonicalization(xml, xpath, expected);
+    });
   });
 }

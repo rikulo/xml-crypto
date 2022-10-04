@@ -1,3 +1,7 @@
+## 2.1.4
+
+* Correct behavior for XML canonicalization with namespaces and nested elements
+
 ## 2.1.3+1
 
 * Fix checkSignature param type
