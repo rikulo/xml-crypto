@@ -457,7 +457,7 @@ class SignedXml {
       for (final inclusiveNamespace in inclusiveNamespaces) {
         if (inclusiveNamespacesPrefixList != null) {
           inclusiveNamespacesPrefixList +=
-              ' ' + (inclusiveNamespace.getAttribute('PrefixList') ?? '');
+              ' ${inclusiveNamespace.getAttribute('PrefixList') ?? ''}';
         } else {
           inclusiveNamespacesPrefixList =
               inclusiveNamespace.getAttribute('PrefixList');
@@ -566,8 +566,8 @@ class SignedXml {
 
     // automatic insertion of `:`
     if (prefix != null && prefix.isNotEmpty) {
-      xmlNsAttr += ':' + prefix;
-      currentPrefix = prefix + ':';
+      xmlNsAttr += ':$prefix';
+      currentPrefix = '$prefix:';
     } else {
       currentPrefix = '';
     }
@@ -869,8 +869,8 @@ class FileKeyInfo implements KeyInfoProvider {
   @override
   String getKeyInfo(Uint8List? signingKey, String? prefix) {
     prefix = prefix ?? '';
-    prefix = prefix.isNotEmpty ? prefix + ':' : prefix;
-    return '<' + prefix + "X509Data></" + prefix + 'X509Data>';
+    prefix = prefix.isNotEmpty ? '$prefix:' : prefix;
+    return '<${prefix}X509Data></${prefix}X509Data>';
   }
 
   @override

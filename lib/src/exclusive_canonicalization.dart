@@ -164,7 +164,7 @@ class ExclusiveCanonicalization extends C14nCanonicalization {
       for (String prefix in prefixList) {
         for (final ancestorNamespace in ancestorNamespaces) {
           if (prefix == ancestorNamespace.prefix) {
-            node.setAttribute('xmlns:' + prefix, ancestorNamespace.namespaceURI,
+            node.setAttribute('xmlns:$prefix', ancestorNamespace.namespaceURI,
                 namespace: 'http://www.w3.org/2000/xmlns/');
           }
         }

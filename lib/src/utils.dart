@@ -20,7 +20,7 @@ XmlNode findFirst(XmlElement doc, String xpath) {
   final nodes = doc.queryXPath(xpath), node = nodes.node;
 
   if (node == null) {
-    throw ArgumentError("could not find xpath " + xpath);
+    throw ArgumentError("could not find xpath $xpath");
   }
   return node.node;
 }

@@ -222,11 +222,7 @@ class C14nCanonicalization implements CanonicalizationAlgorithm<String> {
       }
     }
 
-    return (isAfterDocument ? '\n' : '') +
-        '<!--' +
-        encodeSpecialCharactersInText(node.text) +
-        '-->' +
-        (isBeforeDocument ? '\n' : '');
+    return '${isAfterDocument ? '\n' : ''}<!--${encodeSpecialCharactersInText(node.text)}-->${isBeforeDocument ? '\n' : ''}';
   }
 
   @override
