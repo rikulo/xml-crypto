@@ -19,3 +19,7 @@ dependencies:
 dev_dependencies:
   lints: ^2.0.0
   test: ^1.20.1
+
+false_secrets:
+  - /example/client.pem
+  - /test/static/client.pem
