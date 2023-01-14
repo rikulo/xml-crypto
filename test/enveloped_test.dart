@@ -4,10 +4,12 @@
 
 import 'package:test/test.dart';
 import 'package:xml_crypto/src/enveloped_signature.dart';
-import 'package:xpath_selector/xpath_selector.dart';
+import 'package:xml_crypto/src/utils.dart';
+import 'package:xpath_selector_xml_parser/xpath_selector_xml_parser.dart';
 
 void testC14nCanonicalization(String xml, String xpath, String expected) {
-  final elem = XPath.xml(xml).query(xpath).node?.node;
+  final doc = parseFromString(xml);
+  final elem = XmlXPath.node(doc).query(xpath).node?.node;
   if (elem == null) {
     throw Exception('$xpath not found in $xml');
   }

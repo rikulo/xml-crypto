@@ -11,6 +11,7 @@ import 'package:ninja/ninja.dart';
 import 'package:rsa_pkcs/rsa_pkcs.dart' show RSAPKCSParser;
 import 'package:xml/xml.dart';
 import 'package:xpath_selector/xpath_selector.dart';
+import 'package:xpath_selector_xml_parser/xpath_selector_xml_parser.dart';
 
 import 'exclusive_canonicalization.dart';
 import 'c14n_canonicalization.dart';
@@ -24,7 +25,7 @@ typedef ComputeSignatureCallback = void Function(Error? e, SignedXml? instance);
 
 List<XmlNamespace> findAncestorNs(XmlDocument doc, String docSubsetXpath,
     [namespaceResolver]) {
-  final docSubset = XPath(XmlNodeTree(doc))
+  final docSubset = XmlXPath.node(doc)
       .query(docSubsetXpath); // FIXME: supports namespaceResolver
   final result = docSubset.node;
   if (result == null) {
@@ -195,7 +196,7 @@ class SignedXml {
       }
     }
 
-    final doc = XmlDocument.parse(xml);
+    final doc = parseFromString(xml);
 
     if (!_validateReferences(doc)) {
       if (callback == null) {
@@ -320,7 +321,7 @@ class SignedXml {
       final elem = <XPathNode<XmlNode>>[];
 
       if (uri == '') {
-        elem.addAll(XPath(XmlNodeTree(doc)).query('//*').nodes);
+        elem.addAll(XmlXPath.node(doc).query('//*').nodes);
       } else if (uri.contains('\'')) {
         // xpath injection
         throw UnsupportedError('Cannot validate a uri with quotes inside it');
@@ -329,7 +330,7 @@ class SignedXml {
         var numElementsForId = 0;
         for (final id in idAttributes) {
           final tmpElemXpath = '//*[@$id="$uri"]';
-          final tmpElem = XPath(XmlNodeTree(doc)).query(tmpElemXpath).nodes;
+          final tmpElem = XmlXPath.node(doc).query(tmpElemXpath).nodes;
           numElementsForId += tmpElem.length;
           if (tmpElem.isNotEmpty) {
             elem
@@ -374,28 +375,28 @@ class SignedXml {
   void loadSignature(dynamic signatureNode) {
     if (signatureNode is String) {
       _signatureNode =
-          signatureNode = XmlDocument.parse(signatureNode).rootElement;
+          signatureNode = parseFromString(signatureNode).rootElement;
     } else {
       _signatureNode = signatureNode;
     }
 
     _signatureXml = signatureNode.toString();
 
-    var nodes = XPath.xmlElement(signatureNode)
+    var nodes = XmlXPath.node(signatureNode)
         .query(".//*[local-name()='CanonicalizationMethod']/@Algorithm");
     if (nodes.node == null) {
       throw ArgumentError(
           'could not find CanonicalizationMethod/@Algorithm element');
     }
     canonicalizationAlgorithm = nodes.attr ?? '';
-    nodes = XPath.xmlElement(signatureNode)
+    nodes = XmlXPath.node(signatureNode)
         .query(".//*[local-name()='SignatureMethod']/@Algorithm");
     if (nodes.node == null) {
       throw ArgumentError('could not find SignatureMethod/@Algorithm element');
     }
     signatureAlgorithm = nodes.attr ?? '';
     references.clear();
-    final refs = XPath.xmlElement(signatureNode)
+    final refs = XmlXPath.node(signatureNode)
         .query(".//*[local-name()='SignedInfo']/*[local-name()='Reference']");
     if (refs.nodes.isEmpty) {
       throw ArgumentError('could not find any Reference elements');
@@ -409,7 +410,7 @@ class SignedXml {
         findFirst(signatureNode, ".//*[local-name()='SignatureValue']/text()")
             .text
             .replaceAll(RegExp(r'\r?\n'), '');
-    keyInfo = XPath.xmlElement(signatureNode)
+    keyInfo = XmlXPath.node(signatureNode)
         .query(".//*[local-name()='KeyInfo']")
         .node
         ?.node
@@ -526,7 +527,7 @@ class SignedXml {
   ///   `append`, `prepend`, `before`, `after`
   void computeSignature(String xml,
       {Map<String, dynamic>? opts, ComputeSignatureCallback? callback}) {
-    final doc = XmlDocument.parse(xml);
+    final doc = parseFromString(xml);
     var xmlNsAttr = 'xmlns';
     final signatureAttrs = <String>[];
     var currentPrefix = '';
@@ -599,11 +600,11 @@ class SignedXml {
     // This only works if the prefix and namespace match with those in te xml
     final dummySignatureWrapper =
         '<Dummy $existingPrefixesString>$signatureXml</Dummy>';
-    final xml2 = XmlDocument.parse(dummySignatureWrapper);
+    final xml2 = parseFromString(dummySignatureWrapper);
     final signatureDoc = xml2.rootElement.firstChild!.copy();
 
     final referenceNodeQuery =
-        XPath(XmlNodeTree(doc)).query(location['reference']!);
+        XmlXPath.node(doc).query(location['reference']!);
     if (referenceNodeQuery.nodes.isEmpty) {
       final err = ArgumentError(
           'the following xpath cannot be used because it was not found: ${location['reference']}');
@@ -710,7 +711,7 @@ class SignedXml {
     prefix = prefix.isNotEmpty ? '$prefix:' : prefix;
 
     for (final ref in references) {
-      final nodes = XPath(XmlNodeTree(doc)).query(ref.xpath ?? '');
+      final nodes = XmlXPath.node(doc).query(ref.xpath ?? '');
       if (nodes.nodes.isEmpty) {
         throw ArgumentError(
             'the following xpath cannot be signed because it was not found: ${ref.xpath}');
@@ -838,7 +839,7 @@ class SignedXml {
     //we need to wrap the info in a dummy signature since it contains the default namespace.
     final dummySignatureWrapper =
         '<${prefix}Signature $xmlNsAttr="http://www.w3.org/2000/09/xmldsig#">$signatureValueXml</${prefix}Signature>';
-    final doc = XmlDocument.parse(dummySignatureWrapper);
+    final doc = parseFromString(dummySignatureWrapper);
     return doc.rootElement.firstChild!.copy();
   }
 

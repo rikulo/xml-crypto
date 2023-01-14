@@ -3,14 +3,14 @@
 // Author: rudyhuang
 
 import 'package:test/test.dart';
-import 'package:xml/xml.dart';
 import 'package:xml_crypto/xml_crypto.dart';
 import 'package:xml_crypto/src/c14n_canonicalization.dart';
-import 'package:xpath_selector/xpath_selector.dart';
+import 'package:xml_crypto/src/utils.dart';
+import 'package:xpath_selector_xml_parser/xpath_selector_xml_parser.dart';
 
 void testC14nCanonicalization(String xml, String xpath, String expected) {
-  final doc = XmlDocument.parse(xml);
-  final elem = XPath(XmlNodeTree(doc)).query(xpath).node?.node;
+  final doc = parseFromString(xml);
+  final elem = XmlXPath.node(doc).query(xpath).node?.node;
   if (elem == null) {
     throw Exception('$xpath not found in $xml');
   }
@@ -23,7 +23,7 @@ void testC14nCanonicalization(String xml, String xpath, String expected) {
 }
 
 void testFindAncestorNs(String xml, String xpath, List<XmlNamespace> expected) {
-  final doc = XmlDocument.parse(xml);
+  final doc = parseFromString(xml);
   final result = findAncestorNs(doc, xpath);
   expect(result, expected);
 }

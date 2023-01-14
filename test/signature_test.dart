@@ -11,7 +11,8 @@ import 'package:ninja/ninja.dart';
 import 'package:test/test.dart';
 import 'package:xml/xml.dart';
 import 'package:xml_crypto/src/signed_xml.dart';
-import 'package:xpath_selector/xpath_selector.dart';
+import 'package:xml_crypto/src/utils.dart';
+import 'package:xpath_selector_xml_parser/xpath_selector_xml_parser.dart';
 
 void verifyComputeSignature(String xml, String expectedFile, List<String> referencesXPath) {
   final sig = SignedXml();
@@ -61,7 +62,7 @@ void main() {
           "<name>Harry Potter</name>"
           "</book>"
           "</library>";
-      final signature = XmlDocument.parse(
+      final signature = parseFromString(
           '<Signature xmlns="http://www.w3.org/2000/09/xmldsig#">'
               '<SignedInfo>'
               '<CanonicalizationMethod Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"/>'
@@ -90,7 +91,8 @@ void main() {
       //   the xmldom-fork-fixed library which can pass {ignoreWhiteSpace: true} into the Dom constructor.
       xml = xml.replaceAll(RegExp(r'>\s*<'), '><');
 
-      final signature = XPath.xml(xml)
+      final doc = parseFromString(xml);
+      final signature = XmlXPath.node(doc)
           .query("//*//*[local-name()='Signature']") // FIXME should use namespace-uri()
           .node?.node;
 
@@ -102,7 +104,8 @@ void main() {
 
     test('signature with inclusive namespaces', () {
       final xml = File('./test/static/signature_with_inclusivenamespaces.xml').readAsStringSync();
-      final signature = XPath.xml(xml)
+      final doc = parseFromString(xml);
+      final signature = XmlXPath.node(doc)
           .query("//*//*[local-name()='Signature']") // FIXME should use namespace-uri()
           .node?.node;
 
@@ -114,7 +117,8 @@ void main() {
 
     test('signature with inclusive namespaces with unix line separators', () {
       final xml = File('./test/static/signature_with_inclusivenamespaces_lines.xml').readAsStringSync();
-      final signature = XPath.xml(xml)
+      final doc = parseFromString(xml);
+      final signature = XmlXPath.node(doc)
           .query("//*//*[local-name()='Signature']") // FIXME should use namespace-uri()
           .node?.node;
 
@@ -126,7 +130,8 @@ void main() {
 
     test('signature with inclusive namespaces with windows line separators', () {
       final xml = File('./test/static/signature_with_inclusivenamespaces_lines_windows.xml').readAsStringSync();
-      final signature = XPath.xml(xml)
+      final doc = parseFromString(xml);
+      final signature = XmlXPath.node(doc)
           .query("//*//*[local-name()='Signature']") // FIXME should use namespace-uri()
           .node?.node;
 
@@ -149,7 +154,7 @@ void main() {
 
       final signed = sig.signedXml;
       print(signed);
-      final doc = XmlDocument.parse(signed);
+      final doc = parseFromString(signed);
 
       expect(doc.rootElement.name.local, "library", reason: 'root node = <library>.');
       expect(doc.children.length, 1, reason: 'only one root node is expected.');
@@ -184,7 +189,7 @@ void main() {
       sig.addReference("//*[local-name()='name']");
       sig.computeSignature(xml);
 
-      final doc = XmlDocument.parse(sig.signedXml);
+      final doc = parseFromString(sig.signedXml);
 
       expect(doc.rootElement.lastElementChild!.name.local, 'Signature',
           reason: 'the signature must be appended to the root node by default');
@@ -203,7 +208,8 @@ void main() {
         }
       });
 
-      final referenceNode = XPath.xml(sig.signedXml).query('/root/name').node!.node;
+      final doc = parseFromString(sig.signedXml);
+      final referenceNode = XmlXPath.node(doc).query('/root/name').node!.node;
       expect(referenceNode.lastElementChild!.name.local, 'Signature',
           reason: 'the signature should be appended to root/name');
     });
@@ -221,7 +227,8 @@ void main() {
         }
       });
 
-      final referenceNode = XPath.xml(sig.signedXml).query('/root/name').node!.node;
+      final doc = parseFromString(sig.signedXml);
+      final referenceNode = XmlXPath.node(doc).query('/root/name').node!.node;
       expect(referenceNode.firstElementChild!.name.local, 'Signature',
           reason: 'the signature should be prepended to root/name');
     });
@@ -239,7 +246,8 @@ void main() {
         }
       });
 
-      final referenceNode = XPath.xml(sig.signedXml).query('/root/name').node!.node;
+      final doc = parseFromString(sig.signedXml);
+      final referenceNode = XmlXPath.node(doc).query('/root/name').node!.node;
       expect(referenceNode.previousElementSibling!.name.local, 'Signature',
           reason: 'the signature should be prepended to root/name');
     });
@@ -257,7 +265,8 @@ void main() {
         }
       });
 
-      final referenceNode = XPath.xml(sig.signedXml).query('/root/name').node!.node;
+      final doc = parseFromString(sig.signedXml);
+      final referenceNode = XmlXPath.node(doc).query('/root/name').node!.node;
       expect(referenceNode.nextElementSibling!.name.local, 'Signature',
           reason: 'the signature should be prepended to root/name');
     });
@@ -566,7 +575,8 @@ void main() {
         ..addReference("//*[local-name()='root']", ['http://www.w3.org/2000/09/xmldsig#enveloped-signature'], 'http://www.w3.org/2000/09/xmldsig#sha1', '', '', '', true)
         ..computeSignature(xml);
       final signedXml = sig.signedXml;
-      final uri = XPath.xml(signedXml).query("//*[local-name()='Reference']/@URI").attr;
+      final doc = parseFromString(signedXml);
+      final uri = XmlXPath.node(doc).query("//*[local-name()='Reference']/@URI").attr;
       expect(uri, isEmpty, reason: 'uri should be empty but instead was $uri');
     });
 
@@ -627,7 +637,7 @@ void verifyAddsId(String mode, String nsMode) {
 
   sig.computeSignature(xml);
   final signedXml = sig.originalXmlWithIds;
-  final doc = XmlDocument.parse(signedXml);
+  final doc = parseFromString(signedXml);
 
   final xpath = "//*[local-name()='{elem}' and @Id='_{id}']";
   // final op = nsMode == 'equal' ? '=' : '!='; FIXME: no namespace-uri() support
@@ -640,7 +650,7 @@ void verifyAddsId(String mode, String nsMode) {
 }
 
 void nodeExists(XmlDocument doc, String xpath) {
-  final node = XPath(XmlNodeTree(doc)).query(xpath).node;
+  final node = XmlXPath.node(doc).query(xpath).node;
   expect(node, isNotNull, reason: 'xpath $xpath not found');
 }
 
@@ -660,7 +670,8 @@ void verifyReferenceNS() {
   });
 
   final signedXml = sig.signatureXml;
-  final references = XPath.xml(signedXml).query("//*[local-name()='Reference']").nodes;
+  final doc = parseFromString(signedXml);
+  final references = XmlXPath.node(doc).query("//*[local-name()='Reference']").nodes;
   expect(references.length, 2);
 }
 
@@ -670,8 +681,9 @@ void verifyDoesNotDuplicateIdAttributes(String mode, String prefix) {
   sig.signingKey = File("./test/static/client.pem").readAsBytesSync();
   sig.addReference("//*[local-name()='x']");
   sig.computeSignature(xml);
-  final signedxml = sig.originalXmlWithIds;
-  final attrs = XPath.xml(signedxml).query("//@*").attrs;
+  final signedXml = sig.originalXmlWithIds;
+  final doc = parseFromString(signedXml);
+  final attrs = XmlXPath.node(doc).query("//@*").attrs;
   expect(attrs.length, 2, reason: 'wrong number of attributes');
 }
 
@@ -693,7 +705,7 @@ void verifyAddsAttrs() {
   });
 
   final signedXml = sig.signatureXml;
-  final doc = XmlDocument.parse(signedXml);
+  final doc = parseFromString(signedXml);
   final signatureNode = doc.rootElement;
 
   expect(signatureNode.getAttribute('Id'), attrs['Id'],
@@ -784,7 +796,8 @@ class DummySignatureAlgorithmAsync implements SignatureAlgorithm {
 
 void passLoadSignature(String file, [bool toString = false]) {
   final xml = File(file).readAsStringSync();
-  final node = XPath.xml(xml).query("/*//*[local-name()='Signature']").node!.node; // FIXME namespace-uri()
+  final doc = parseFromString(xml);
+  final node = XmlXPath.node(doc).query("/*//*[local-name()='Signature']").node!.node; // FIXME namespace-uri()
   final sig = SignedXml();
   sig.loadSignature(toString ? node.toString() : node);
 
@@ -795,7 +808,8 @@ void passLoadSignature(String file, [bool toString = false]) {
   expect(sig.signatureValue, "PI2xGt3XrVcxYZ34Kw7nFdq75c7Mmo7J0q7yeDhBprHuJal/KV9KyKG+Zy3bmQIxNwkPh0KMP5r1YMTKlyifwbWK0JitRCSa0Fa6z6+TgJi193yiR5S1MQ+esoQT0RzyIOBl9/GuJmXx/1rXnqrTxmL7UxtqKuM29/eHwF0QDUI=",
       reason: 'wrong signature value');
 
-  final keyInfo = XPath.xml(sig.keyInfo!).query("//*[local-name()='KeyInfo']/*[local-name()='dummyKey']").node!.node;
+  final doc2 = parseFromString(sig.keyInfo!);
+  final keyInfo = XmlXPath.node(doc2).query("//*[local-name()='KeyInfo']/*[local-name()='dummyKey']").node!.node;
   expect(keyInfo.firstChild?.text, '1234', reason: 'keyInfo clause not correctly loaded');
   expect(sig.references.length, 3);
 
@@ -818,7 +832,8 @@ void passValidSignature(String file, [String mode = '']) {
 }
 
 bool verifySignature(String xml, String mode) {
-  final node = XPath.xml(xml).query("//*[local-name()='Signature']").node!.node; // FIXME namespace-uri()
+  final doc = parseFromString(xml);
+  final node = XmlXPath.node(doc).query("//*[local-name()='Signature']").node!.node; // FIXME namespace-uri()
 
   final sig = SignedXml(mode);
   sig.keyInfoProvider = FileKeyInfo('./test/static/client_public.pem');

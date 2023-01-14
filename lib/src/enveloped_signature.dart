@@ -3,7 +3,7 @@
 // Author: rudyhuang
 
 import 'package:xml/xml.dart';
-import 'package:xpath_selector/xpath_selector.dart';
+import 'package:xpath_selector_xml_parser/xpath_selector_xml_parser.dart';
 
 import 'signed_xml.dart';
 import 'utils.dart';
@@ -18,7 +18,7 @@ class EnvelopedSignature implements CanonicalizationAlgorithm<XmlNode> {
     final signatureNode = options['signatureNode'];
     if (signatureNode == null) {
       // leave this for the moment...
-      final signature = XPath(XmlNodeTree(node)).query(
+      final signature = XmlXPath.node(node).query(
           './*[local-name()="Signature""]'); // FIXME: namespace-uri() not supported
       // .query('./*[local-name()="Signature" and namespace-uri()="http://www.w3.org/2000/09/xmldsig#"]');
       final signatureNode = signature.node;
@@ -33,7 +33,7 @@ class EnvelopedSignature implements CanonicalizationAlgorithm<XmlNode> {
     final expectedSignatureValue = findFirst(signatureNode as XmlElement,
             ".//*[local-name()='SignatureValue']/text()")
         .text;
-    final signatures = XPath(XmlNodeTree(node)).query(
+    final signatures = XmlXPath.node(node).query(
         './/*[local-name()="Signature"]'); // FIXME: namespace-uri() not supported
     // .query('.//*[local-name()="Signature" and namespace-uri()="http://www.w3.org/2000/09/xmldsig#"]');
     for (final sig in signatures.nodes) {

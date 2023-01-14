@@ -11,6 +11,7 @@ environment:
 
 dependencies:
   xml: ^5.4.1
+  xpath_selector: ^3.0.1
   xpath_selector_xml_parser: ^3.0.0
   crypto: ^3.0.2
   rsa_pkcs: ^2.0.1

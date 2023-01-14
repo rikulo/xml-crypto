@@ -1,5 +1,8 @@
 ## 3.0.1
 
+* Migrate to `xpath_selector` 3.0.1 (#4)
+* Handle End-of-Line before parsing Xml (#5)
+
 ## 2.1.4
 
 * Correct behavior for XML canonicalization with namespaces and nested elements

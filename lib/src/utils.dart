@@ -3,7 +3,7 @@
 // Author: rudyhuang
 
 import 'package:xml/xml.dart';
-import 'package:xpath_selector/xpath_selector.dart';
+import 'package:xpath_selector_xml_parser/xpath_selector_xml_parser.dart';
 
 XmlAttribute? findAttr(XmlNode node, String localName, [String? namespace]) {
   for (final attr in node.attributes) {
@@ -78,3 +78,11 @@ String encodeSpecialCharactersInAttribute(String attributeValue) =>
 
 String encodeSpecialCharactersInText(String text) => text.replaceAllMapped(
     RegExp(r'([&<>\r])'), (m) => _xmlSpecialToEncodedText[m[1]]!);
+
+XmlDocument parseFromString(String xml)
+=> XmlDocument.parse(normalizeLinebreaks(xml));
+
+String normalizeLinebreaks(String xml)
+=> xml
+  .replaceAll(RegExp(r'\r\n'), '\n')
+  .replaceAll(RegExp(r'\r'), '\n');
