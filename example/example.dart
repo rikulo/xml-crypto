@@ -6,7 +6,6 @@ import 'dart:io';
 
 import 'package:xml/xml.dart';
 import 'package:xml_crypto/xml_crypto.dart';
-import 'package:xpath_selector_xml_parser/xpath_selector_xml_parser.dart';
 
 void main() {
   final xml = "<library>"
@@ -20,7 +19,7 @@ void main() {
 
   print('xml signed successfully');
 
-  var signedXml = File('result.xml').readAsStringSync();
+  final signedXml = File('result.xml').readAsStringSync();
   print('validating signature...');
 
   //validate an xml document
@@ -41,10 +40,10 @@ void signXml(String xml, String xpath, String key, String dest) {
 
 bool validateXml(String xml, String key) {
   final doc = XmlDocument.parse(xml);
-  final signature = XmlXPath.node(doc).query("/*/*[local-name()='Signature']").node;
+  final signature = doc.findAllElements('Signature').first;
   final sig = SignedXml()
     ..keyInfoProvider = FileKeyInfo(key)
-    ..loadSignature(signature!.node);
+    ..loadSignature(signature);
   final res = sig.checkSignature(xml);
   if (!res) print(sig.validationErrors);
   return res;
