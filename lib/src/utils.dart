@@ -79,10 +79,8 @@ String encodeSpecialCharactersInAttribute(String attributeValue) =>
 String encodeSpecialCharactersInText(String text) => text.replaceAllMapped(
     RegExp(r'([&<>\r])'), (m) => _xmlSpecialToEncodedText[m[1]]!);
 
-XmlDocument parseFromString(String xml)
-=> XmlDocument.parse(normalizeLinebreaks(xml));
+XmlDocument parseFromString(String xml) =>
+    XmlDocument.parse(normalizeLinebreaks(xml));
 
-String normalizeLinebreaks(String xml)
-=> xml
-  .replaceAll(RegExp(r'\r\n'), '\n')
-  .replaceAll(RegExp(r'\r'), '\n');
+String normalizeLinebreaks(String xml) =>
+    xml.replaceAll(RegExp(r'\r\n'), '\n').replaceAll(RegExp(r'\r'), '\n');

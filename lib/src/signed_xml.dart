@@ -603,8 +603,7 @@ class SignedXml {
     final xml2 = parseFromString(dummySignatureWrapper);
     final signatureDoc = xml2.rootElement.firstChild!.copy();
 
-    final referenceNodeQuery =
-        XmlXPath.node(doc).query(location['reference']!);
+    final referenceNodeQuery = XmlXPath.node(doc).query(location['reference']!);
     if (referenceNodeQuery.nodes.isEmpty) {
       final err = ArgumentError(
           'the following xpath cannot be used because it was not found: ${location['reference']}');
