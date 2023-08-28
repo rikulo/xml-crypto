@@ -148,7 +148,7 @@ class C14nCanonicalization implements CanonicalizationAlgorithm<String> {
 
     //render namespaces
     for (final ns in nsListToRender) {
-      res.add(' xmlns:${ns.prefix}="${ns.namespaceURI}"');
+      res.add(' xmlns${ns.prefix.isNotEmpty ? ':${ns.prefix}' : ''}="${ns.namespaceURI}"');
     }
 
     return RenderNsResult(res.join(''), newDefaultNs);

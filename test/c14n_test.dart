@@ -3,9 +3,9 @@
 // Author: rudyhuang
 
 import 'package:test/test.dart';
-import 'package:xml_crypto/xml_crypto.dart';
 import 'package:xml_crypto/src/c14n_canonicalization.dart';
 import 'package:xml_crypto/src/utils.dart';
+import 'package:xml_crypto/xml_crypto.dart';
 import 'package:xpath_selector_xml_parser/xpath_selector_xml_parser.dart';
 
 void testC14nCanonicalization(String xml, String xpath, String expected) {
@@ -82,6 +82,22 @@ void main() {
       final xml = "<root xmlns:ccc='bbb'><child1 xmlns:ccc='AAA'><child2 xmlns:ccc='AAA'></child2></child1></root>";
       final xpath = "/root/child1/child2";
       final expected = const <XmlNamespace>[];
+
+      testFindAncestorNs(xml, xpath, expected);
+    });
+
+    test('Should not find namespace when both has no prefix', () {
+      final xml = "<root xmlns='bbb'><child1><child2 xmlns='ddd'></child2></child1></root>";
+      final xpath = "//*[local-name()='child2']";
+      final expected = const <XmlNamespace>[];
+
+      testFindAncestorNs(xml, xpath, expected);
+    });
+
+    test('Should find namespace without prefix', () {
+      final xml = "<root xmlns='bbb'><child1><ds:child2 xmlns:ds='ddd'><ds:child3></ds:child3></ds:child2></child1></root>";
+      final xpath = "//*[local-name()='child2']";
+      final expected = const [XmlNamespace("", "bbb")];
 
       testFindAncestorNs(xml, xpath, expected);
     });
@@ -172,6 +188,14 @@ void main() {
       final xml = "<root xmlns:aaa='bbb'><child1><child2><child3 aaa:foo='bar'></child3></child2></child1></root>";
       final xpath = "/root/child1";
       final expected = '<child1 xmlns:aaa="bbb"><child2><child3 aaa:foo="bar"></child3></child2></child1>';
+
+      testC14nCanonicalization(xml, xpath, expected);
+    });
+
+    test('should not has colon when parent namespace has no prefix', () {
+      final xml = "<root xmlns='bbb'><child1><cc:child2 xmlns:cc='ddd'><cc:child3></cc:child3></cc:child2></child1></root>";
+      final xpath = "//*[local-name()='child3']";
+      final expected = '<cc:child3 xmlns="bbb" xmlns:cc="ddd"></cc:child3>';
 
       testC14nCanonicalization(xml, xpath, expected);
     });

@@ -52,27 +52,26 @@ List<XmlNamespace> findAncestorNs(XmlDocument doc, String docSubsetXpath,
   }
 
   final returningNs = <XmlNamespace>[];
-  final subsetAttributes = node.attributes;
-
-  for (var a in ancestorNsWithoutDuplicate) {
-    var isUnique = true;
-    for (var b in subsetAttributes) {
-      var nodeName = b.name.qualified;
-      if (!nodeName.startsWith('xmlns:')) continue;
-
-      final prefix = nodeName.substring(6);
-      if (prefix == a.prefix) {
-        isUnique = false;
-        break;
-      }
-    }
-
-    if (isUnique) {
-      returningNs.add(a);
+  final subsetNsPrefix = _findNSPrefix(node);
+  for (var ancestorNs in ancestorNsWithoutDuplicate) {
+    if (ancestorNs.prefix != subsetNsPrefix) {
+      returningNs.add(ancestorNs);
     }
   }
 
   return returningNs;
+}
+
+String _findNSPrefix(XmlNode subset) {
+  final subsetAttributes = subset.attributes;
+  final regexp = RegExp(r'^xmlns:?');
+  for (var attr in subsetAttributes) {
+    final nodeName = attr.qualifiedName;
+    if (nodeName.startsWith(regexp)) {
+      return nodeName.replaceAll(regexp, '');
+    }
+  }
+  return subset is XmlElement ? (subset.namespacePrefix ?? '') : '';
 }
 
 List<XmlNamespace> _collectAncestorNamespaces(XmlNode node,
@@ -84,11 +83,12 @@ List<XmlNamespace> _collectAncestorNamespaces(XmlNode node,
     return nsArray;
   }
 
+  final regexp = RegExp(r'^xmlns:?');
   for (var attr in parent.attributes) {
     final name = attr.name.qualified;
-    if (name.startsWith('xmlns:')) {
+    if (name.startsWith(regexp)) {
       nsArray.add(
-          XmlNamespace(name.replaceFirst(RegExp(r'^xmlns:'), ''), attr.value));
+          XmlNamespace(name.replaceFirst(regexp, ''), attr.value));
     }
   }
 
