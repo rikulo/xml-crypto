@@ -5,6 +5,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
+
 import 'package:crypto/crypto.dart';
 import 'package:ninja/asymmetric/rsa/encoder/emsaPkcs1v15.dart';
 import 'package:ninja/ninja.dart';
@@ -13,9 +14,9 @@ import 'package:xml/xml.dart';
 import 'package:xpath_selector/xpath_selector.dart';
 import 'package:xpath_selector_xml_parser/xpath_selector_xml_parser.dart';
 
-import 'exclusive_canonicalization.dart';
 import 'c14n_canonicalization.dart';
 import 'enveloped_signature.dart';
+import 'exclusive_canonicalization.dart';
 import 'utils.dart';
 
 typedef CalculateSignatureCallback = void Function(
@@ -133,6 +134,7 @@ class SignedXml {
   late String signatureAlgorithm;
   KeyInfoProvider? _keyInfoProvider;
   late String canonicalizationAlgorithm;
+  late String inclusiveNamespacesPrefixList;
   String _signedXml = '';
   String _signatureXml = '';
   XmlNode? _signatureNode;
@@ -153,6 +155,8 @@ class SignedXml {
     canonicalizationAlgorithm =
         options['canonicalizationAlgorithm'] as String? ??
             'http://www.w3.org/2001/10/xml-exc-c14n#';
+    inclusiveNamespacesPrefixList =
+        options['inclusiveNamespacesPrefixList'] as String? ?? '';
 
     final idAttribute = options['idAttribute'];
     if (idAttribute is List<String>) idAttributes.insertAll(0, idAttribute);
@@ -728,7 +732,17 @@ class SignedXml {
         for (final trans in ref.transforms) {
           final transform = _findCanonicalizationAlgorithm(trans);
           res.write(
-              '<${prefix}Transform Algorithm="${transform.algorithmName}" />');
+              '<${prefix}Transform Algorithm="${transform.algorithmName}"');
+          final prefixList = ref.inclusiveNamespacesPrefixList;
+          if (prefixList?.isNotEmpty == true) {
+            res
+              ..write('>')
+              ..write(
+                  '<InclusiveNamespaces PrefixList="$prefixList" xmlns="${transform.algorithmName}"/>')
+              ..write('</${prefix}Transform>');
+          } else {
+            res.write(' />');
+          }
         }
 
         final canonXml = _getCanonReferenceXml(doc, ref, node.node);
@@ -813,7 +827,17 @@ class SignedXml {
 
     final res = StringBuffer('<${currentPrefix}SignedInfo>')
       ..write(
-          '<${currentPrefix}CanonicalizationMethod Algorithm="${transform.algorithmName}" />')
+          '<${currentPrefix}CanonicalizationMethod Algorithm="${transform.algorithmName}"');
+    if (inclusiveNamespacesPrefixList.isNotEmpty) {
+      res
+        ..write('>')
+        ..write(
+            '<InclusiveNamespaces PrefixList="$inclusiveNamespacesPrefixList" xmlns="${transform.algorithmName}"/>')
+        ..write('</${currentPrefix}CanonicalizationMethod>');
+    } else {
+      res.write(' />');
+    }
+    res
       ..write(
           '<${currentPrefix}SignatureMethod Algorithm="${algo.algorithmName}" />')
       ..write(_createReference(doc, prefix))

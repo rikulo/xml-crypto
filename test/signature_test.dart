@@ -623,6 +623,92 @@ void main() {
       expect(RegExp(r'xmlns:wsu=').allMatches(result).length, 1);
       expect(RegExp(r'xmlns:wsse=').allMatches(result).length, 1);
     });
+
+    test('creates InclusiveNamespaces element when inclusiveNamespacesPrefixList is set on Reference',
+        () {
+      final xml = '<root><x /></root>';
+      final sig = SignedXml();
+      sig
+        ..signingKey = File('./test/static/client.pem').readAsBytesSync()
+        ..keyInfoProvider = null
+        ..addReference(
+            "//*[local-name()='root']",
+            ["http://www.w3.org/2000/09/xmldsig#enveloped-signature"],
+            "http://www.w3.org/2000/09/xmldsig#sha1",
+            "",
+            "",
+            "prefix1 prefix2")
+        ..computeSignature(xml);
+      final signedXml = sig.signedXml;
+      final doc = parseFromString(signedXml);
+      final inclusiveNamespaces = XmlXPath.node(doc).query("//*[local-name()='Reference']/*[local-name()='Transforms']/*[local-name()='Transform']/*[local-name()='InclusiveNamespaces']").nodes;
+      expect(inclusiveNamespaces, hasLength(1), reason: 'InclusiveNamespaces element should exist');
+
+      final prefixListAttribute = inclusiveNamespaces.first.attributes['PrefixList'];
+      expect(prefixListAttribute, 'prefix1 prefix2', reason: 'InclusiveNamespaces element should have the correct PrefixList attribute value');
+    });
+
+    test('does not create InclusiveNamespaces element when inclusiveNamespacesPrefixList is not set on Reference',
+        () {
+      final xml = '<root><x /></root>';
+      final sig = SignedXml();
+      sig
+        ..signingKey = File('./test/static/client.pem').readAsBytesSync()
+        ..keyInfoProvider = null
+        ..addReference(
+            "//*[local-name()='root']",
+            ["http://www.w3.org/2000/09/xmldsig#enveloped-signature"],
+            "http://www.w3.org/2000/09/xmldsig#sha1",
+            "",
+            "",
+            "")
+        ..computeSignature(xml);
+      final signedXml = sig.signedXml;
+      final doc = parseFromString(signedXml);
+      final inclusiveNamespaces = XmlXPath.node(doc).query("//*[local-name()='Reference']/*[local-name()='Transforms']/*[local-name()='Transform']/*[local-name()='InclusiveNamespaces']").nodes;
+      expect(inclusiveNamespaces, isEmpty, reason: 'InclusiveNamespaces element should not exist');
+    });
+
+    test('creates InclusiveNamespaces element inside CanonicalizationMethod when inclusiveNamespacesPrefixList is set on SignedXml options',
+        () {
+      final xml = '<root><x /></root>';
+      final sig = SignedXml('', {
+        'inclusiveNamespacesPrefixList': "prefix1 prefix2"
+      }); // Omit inclusiveNamespacesPrefixList property
+      sig
+        ..signingKey = File('./test/static/client.pem').readAsBytesSync()
+        ..keyInfoProvider = null
+        ..addReference(
+            "//*[local-name()='root']",
+            ["http://www.w3.org/2000/09/xmldsig#enveloped-signature"],
+            "http://www.w3.org/2000/09/xmldsig#sha1")
+        ..computeSignature(xml);
+      final signedXml = sig.signedXml;
+      final doc = parseFromString(signedXml);
+      final inclusiveNamespaces = XmlXPath.node(doc).query("//*[local-name()='CanonicalizationMethod']/*[local-name()='InclusiveNamespaces']").nodes;
+      expect(inclusiveNamespaces, hasLength(1), reason: 'InclusiveNamespaces element should exist inside CanonicalizationMethod');
+
+      final prefixListAttribute = inclusiveNamespaces.first.attributes['PrefixList'];
+      expect(prefixListAttribute, 'prefix1 prefix2', reason: 'InclusiveNamespaces element inside CanonicalizationMethod should have the correct PrefixList attribute value');
+    });
+
+    test('does not create InclusiveNamespaces element inside CanonicalizationMethod when inclusiveNamespacesPrefixList is not set on SignedXml options',
+        () {
+      final xml = '<root><x /></root>';
+      final sig = SignedXml(); // Omit inclusiveNamespacesPrefixList property
+      sig
+        ..signingKey = File('./test/static/client.pem').readAsBytesSync()
+        ..keyInfoProvider = null
+        ..addReference(
+            "//*[local-name()='root']",
+            ["http://www.w3.org/2000/09/xmldsig#enveloped-signature"],
+            "http://www.w3.org/2000/09/xmldsig#sha1")
+        ..computeSignature(xml);
+      final signedXml = sig.signedXml;
+      final doc = parseFromString(signedXml);
+      final inclusiveNamespaces = XmlXPath.node(doc).query("//*[local-name()='CanonicalizationMethod']/*[local-name()='InclusiveNamespaces']").nodes;
+      expect(inclusiveNamespaces, isEmpty, reason: 'InclusiveNamespaces element should not exist inside CanonicalizationMethod');
+    });
   });
 }
 
