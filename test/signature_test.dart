@@ -709,6 +709,22 @@ void main() {
       final inclusiveNamespaces = XmlXPath.node(doc).query("//*[local-name()='CanonicalizationMethod']/*[local-name()='InclusiveNamespaces']").nodes;
       expect(inclusiveNamespaces, isEmpty, reason: 'InclusiveNamespaces element should not exist inside CanonicalizationMethod');
     });
+
+    test('adds attributes to KeyInfo element when attrs are present in keyInfoProvider', () {
+      final xml = '<root><x /></root>';
+      final sig = SignedXml()
+        ..keyInfoProvider = CustomKeyInfoProvider()
+        ..computeSignature(xml);
+      final signedXml = sig.signedXml;
+      final doc = parseFromString(signedXml);
+      final keyInfoElement = XmlXPath.node(doc).query("//*[local-name()='KeyInfo']").nodes;
+      expect(keyInfoElement, hasLength(1), reason: 'KeyInfo element should exist');
+
+      final algorithmAttribute = keyInfoElement.first.attributes['CustomUri'];
+      expect(algorithmAttribute, 'http://www.example.com/keyinfo', reason: 'KeyInfo element should have the correct CustomUri attribute value');
+      final customAttribute = keyInfoElement.first.attributes['CustomAttribute'];
+      expect(customAttribute, 'custom-value', reason: 'KeyInfo element should have the correct CustomAttribute attribute value');
+    });
   });
 }
 
@@ -819,6 +835,18 @@ class DummyKeyInfoNS extends KeyInfoProvider {
 
   @override
   Uint8List getKey(String? keyInfo) => Uint8List(0);
+}
+
+class CustomKeyInfoProvider extends KeyInfoProvider {
+  @override
+  Uint8List? getKey(String? keyInfo) => File('./test/static/client.pem').readAsBytesSync();
+  @override
+  String getKeyInfo(Uint8List? signingKey, String? prefix) => '<dummy/>';
+  @override
+  Map<String, dynamic> get attrs => const {
+    'CustomUri': "http://www.example.com/keyinfo",
+    'CustomAttribute': "custom-value",
+  };
 }
 
 class DummyTransformation implements CanonicalizationAlgorithm<String> {
@@ -949,4 +977,7 @@ class AssertionKeyInfo implements KeyInfoProvider {
 
   @override
   Uint8List getKey(String? keyInfo) => Uint8List(0);
+
+  @override
+  Map<String, dynamic>? get attrs => null;
 }

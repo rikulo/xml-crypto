@@ -698,8 +698,15 @@ class SignedXml {
     if (currentPrefix.isNotEmpty) currentPrefix += ':';
 
     if (keyInfoProvider != null) {
+      final keyInfoAttrs = StringBuffer(),
+        attrs = keyInfoProvider!.attrs;
+      if (attrs != null) {
+        for (var entry in attrs.entries) {
+          keyInfoAttrs.write(' ${entry.key}="${entry.value}"');
+        }
+      }
       res
-        ..write('<${currentPrefix}KeyInfo>')
+        ..write('<${currentPrefix}KeyInfo${keyInfoAttrs.toString()}>')
         ..write(keyInfoProvider!.getKeyInfo(signingKey, prefix))
         ..write('</${currentPrefix}KeyInfo>');
     }
@@ -883,6 +890,8 @@ abstract class KeyInfoProvider {
   String getKeyInfo(Uint8List? signingKey, String? prefix);
 
   Uint8List? getKey(String? keyInfo);
+
+  Map<String, dynamic>? get attrs => null;
 }
 
 class FileKeyInfo implements KeyInfoProvider {
@@ -899,6 +908,9 @@ class FileKeyInfo implements KeyInfoProvider {
 
   @override
   Uint8List? getKey(String? keyInfo) => File(file).readAsBytesSync();
+
+  @override
+  Map<String, dynamic>? get attrs => null;
 }
 
 abstract class CanonicalizationAlgorithm<R> {
