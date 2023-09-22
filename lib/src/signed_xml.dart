@@ -131,6 +131,7 @@ class SignedXml {
   final references = <_Reference>[];
   var _id = 0;
   Uint8List? signingKey;
+  Uint8List? signingCert;
   late String signatureAlgorithm;
   KeyInfoProvider? _keyInfoProvider;
   late String canonicalizationAlgorithm;
@@ -707,7 +708,7 @@ class SignedXml {
       }
       res
         ..write('<${currentPrefix}KeyInfo${keyInfoAttrs.toString()}>')
-        ..write(keyInfoProvider!.getKeyInfo(signingKey, prefix))
+        ..write(keyInfoProvider!.getKeyInfo(signingCert ?? signingKey, prefix))
         ..write('</${currentPrefix}KeyInfo>');
     }
     return res.toString();
@@ -901,9 +902,16 @@ class FileKeyInfo implements KeyInfoProvider {
 
   @override
   String getKeyInfo(Uint8List? signingKey, String? prefix) {
-    prefix = prefix ?? '';
-    prefix = prefix.isNotEmpty ? '$prefix:' : prefix;
-    return '<${prefix}X509Data></${prefix}X509Data>';
+    var currentPrefix = prefix ?? '';
+    currentPrefix = currentPrefix.isNotEmpty ? '$currentPrefix:' : currentPrefix;
+    final signingCert = StringBuffer();
+    if (signingKey != null) {
+      final certArray = [signingKey];
+      for (var cert in certArray) {
+        signingCert.write("<${currentPrefix}X509Certificate>${base64Encode(cert)}</${currentPrefix}X509Certificate>");
+      }
+    }
+    return '<${currentPrefix}X509Data>${signingCert.toString()}</${currentPrefix}X509Data>';
   }
 
   @override
