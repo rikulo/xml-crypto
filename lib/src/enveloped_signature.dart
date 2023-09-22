@@ -32,7 +32,7 @@ class EnvelopedSignature implements CanonicalizationAlgorithm<XmlNode> {
     assert(signatureNode is XmlElement);
     final expectedSignatureValue = findFirst(signatureNode as XmlElement,
             ".//*[local-name()='SignatureValue']/text()")
-        .text;
+        .innerText;
     final signatures = XmlXPath.node(node).query(
         './/*[local-name()="Signature"]'); // FIXME: namespace-uri() not supported
     // .query('.//*[local-name()="Signature" and namespace-uri()="http://www.w3.org/2000/09/xmldsig#"]');
@@ -41,7 +41,7 @@ class EnvelopedSignature implements CanonicalizationAlgorithm<XmlNode> {
       assert(child is XmlElement);
       final signatureValue = findFirst(
               child as XmlElement, ".//*[local-name()='SignatureValue']/text()")
-          .text;
+          .innerText;
       if (expectedSignatureValue == signatureValue) {
         child.parent?.children.remove(child);
       }

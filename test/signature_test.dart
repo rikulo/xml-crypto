@@ -924,7 +924,7 @@ void passLoadSignature(String file, [bool toString = false]) {
 
   final doc2 = parseFromString(sig.keyInfo!);
   final keyInfo = XmlXPath.node(doc2).query("//*[local-name()='KeyInfo']/*[local-name()='dummyKey']").node!.node;
-  expect(keyInfo.firstChild?.text, '1234', reason: 'keyInfo clause not correctly loaded');
+  expect(keyInfo.firstChild?.value, '1234', reason: 'keyInfo clause not correctly loaded');
   expect(sig.references.length, 3);
 
   final digests = ['b5GCZ2xpP5T7tbLWBTkOl4CYupQ=', 'K4dI497ZCxzweDIrbndUSmtoezY=', 'sH1gxKve8wlU8LlFVa2l6w3HMJ0='];

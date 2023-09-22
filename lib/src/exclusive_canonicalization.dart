@@ -99,7 +99,7 @@ class ExclusiveCanonicalization extends C14nCanonicalization {
     }
 
     if (xmlData.contains(node.nodeType)) {
-      return encodeSpecialCharactersInText(node.text);
+      return encodeSpecialCharactersInText(node.value ?? '');
     }
 
     if (node is XmlElement) {

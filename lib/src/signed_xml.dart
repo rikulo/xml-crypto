@@ -413,7 +413,7 @@ class SignedXml {
 
     signatureValue =
         findFirst(signatureNode, ".//*[local-name()='SignatureValue']/text()")
-            .text
+            .innerText
             .replaceAll(RegExp(r'\r?\n'), '');
     keyInfo = XmlXPath.node(signatureNode)
         .query(".//*[local-name()='KeyInfo']")
@@ -441,11 +441,11 @@ class SignedXml {
       throw ArgumentError('could not find DigestValue in reference $ref');
     }
     if (nodes.first.firstChild == null ||
-        (nodes.first.firstChild?.text ?? '') == '') {
+        (nodes.first.firstChild?.value ?? '') == '') {
       throw ArgumentError(
           'could not find the value of DigestValue in ${nodes.first}');
     }
-    final digestValue = nodes.first.firstChild!.text;
+    final digestValue = nodes.first.firstChild!.value;
 
     final transforms = <String>[];
     String? inclusiveNamespacesPrefixList;

@@ -165,7 +165,7 @@ class C14nCanonicalization implements CanonicalizationAlgorithm<String> {
     }
 
     if (xmlData.contains(node.nodeType)) {
-      return encodeSpecialCharactersInText(node.text);
+      return encodeSpecialCharactersInText(node.value ?? '');
     }
 
     if (node is XmlElement) {
@@ -222,7 +222,7 @@ class C14nCanonicalization implements CanonicalizationAlgorithm<String> {
       }
     }
 
-    return '${isAfterDocument ? '\n' : ''}<!--${encodeSpecialCharactersInText(node.text)}-->${isBeforeDocument ? '\n' : ''}';
+    return '${isAfterDocument ? '\n' : ''}<!--${encodeSpecialCharactersInText(node.value ?? '')}-->${isBeforeDocument ? '\n' : ''}';
   }
 
   @override
