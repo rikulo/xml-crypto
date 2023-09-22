@@ -1,3 +1,12 @@
+## 3.2.0
+
+* The last version that supports Dart 2.x
+* Follow xml-crypto 3.2.0
+  * Use inclusiveNamespacesPrefixList to generate InclusiveNamespaces
+  * Add support for appending attributes to KeyInfo element
+  * Updated getKeyInfo function with actual implementation
+  * Fix issue in case when namespace has no prefix
+
 ## 3.0.1
 
 * Migrate to `xpath_selector` 3.0.1 (#4)

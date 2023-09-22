@@ -2,7 +2,7 @@
 
 [![Dart](https://github.com/rikulo/xml-crypto/actions/workflows/dart.yml/badge.svg)](https://github.com/rikulo/xml-crypto/actions/workflows/dart.yml)
 
-Port of awesome Node.js library - [xml-crypto](https://github.com/yaronn/xml-crypto) - in Dart.
+Port of awesome Node.js library - [xml-crypto](https://github.com/node-saml/xml-crypto) - in Dart.
 
 An xml digital signature library for Dart.
 
