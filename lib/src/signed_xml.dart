@@ -87,8 +87,7 @@ List<XmlNamespace> _collectAncestorNamespaces(XmlNode node,
   for (var attr in parent.attributes) {
     final name = attr.name.qualified;
     if (name.startsWith(regexp)) {
-      nsArray.add(
-          XmlNamespace(name.replaceFirst(regexp, ''), attr.value));
+      nsArray.add(XmlNamespace(name.replaceFirst(regexp, ''), attr.value));
     }
   }
 
@@ -699,8 +698,7 @@ class SignedXml {
     if (currentPrefix.isNotEmpty) currentPrefix += ':';
 
     if (keyInfoProvider != null) {
-      final keyInfoAttrs = StringBuffer(),
-        attrs = keyInfoProvider!.attrs;
+      final keyInfoAttrs = StringBuffer(), attrs = keyInfoProvider!.attrs;
       if (attrs != null) {
         for (var entry in attrs.entries) {
           keyInfoAttrs.write(' ${entry.key}="${entry.value}"');
@@ -903,12 +901,14 @@ class FileKeyInfo implements KeyInfoProvider {
   @override
   String getKeyInfo(Uint8List? signingKey, String? prefix) {
     var currentPrefix = prefix ?? '';
-    currentPrefix = currentPrefix.isNotEmpty ? '$currentPrefix:' : currentPrefix;
+    currentPrefix =
+        currentPrefix.isNotEmpty ? '$currentPrefix:' : currentPrefix;
     final signingCert = StringBuffer();
     if (signingKey != null) {
       final certArray = [signingKey];
       for (var cert in certArray) {
-        signingCert.write("<${currentPrefix}X509Certificate>${base64Encode(cert)}</${currentPrefix}X509Certificate>");
+        signingCert.write(
+            "<${currentPrefix}X509Certificate>${base64Encode(cert)}</${currentPrefix}X509Certificate>");
       }
     }
     return '<${currentPrefix}X509Data>${signingCert.toString()}</${currentPrefix}X509Data>';
