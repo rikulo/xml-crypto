@@ -81,4 +81,56 @@ void main() {
     sig.loadSignature(signature);
     expect(sig.checkSignature(xml), isFalse);
   });
+
+  test('test validating SAML response with digest comment', () {
+    final xml = File('./test/static/valid_saml_with_digest_comment.xml').readAsStringSync();
+    final doc = parseFromString(xml);
+    final signature = XmlXPath.node(doc)
+        .query("//*[local-name()='Signature' and namespace()='ds']") // FIXME should use namespace-uri()
+        .node?.node;
+
+    final sig = SignedXml();
+    sig.keyInfoProvider = FileKeyInfo('./test/static/feide_public.pem');
+    sig.loadSignature(signature);
+    expect(sig.checkSignature(xml), isFalse);
+    expect(sig.references.first.digestValue, 'RnNjoyUguwze5w2R+cboyTHlkQk=');
+  });
+
+  test('test signature contains a `SignedInfo` node', () {
+    final xml = File('./test/static/invalid_saml_no_signed_info.xml').readAsStringSync();
+    final doc = parseFromString(xml);
+    final signature = XmlXPath.node(doc)
+        .query("/*/*[local-name()='Signature' and namespace()='ds']") // FIXME should use namespace-uri()
+        .node?.node;
+
+    final sig = SignedXml();
+    sig.keyInfoProvider = FileKeyInfo('./test/static/feide_public.pem');
+    expect(() => sig.loadSignature(signature), throwsArgumentError);
+  });
+
+  test('test validation ignores an additional wrapped `SignedInfo` node', () {
+    final xml = File('./test/static/saml_wrapped_signed_info_node.xml').readAsStringSync();
+    final doc = parseFromString(xml);
+    final signature = XmlXPath.node(doc)
+        .query("//*[local-name()='Signature' and namespace()='ds']") // FIXME should use namespace-uri()
+        .node?.node;
+
+    final sig = SignedXml();
+    sig.keyInfoProvider = FileKeyInfo('./test/static/saml_external_ns.pem');
+    sig.loadSignature(signature);
+    expect(sig.references.length, 1);
+    expect(sig.checkSignature(xml), isTrue);
+  });
+
+  test('test signature does not contain multiple `SignedInfo` nodes', () {
+    final xml = File('./test/static/saml_multiple_signed_info_nodes.xml').readAsStringSync();
+    final doc = parseFromString(xml);
+    final signature = XmlXPath.node(doc)
+        .query("//*[local-name()='Signature' and namespace()='ds']") // FIXME should use namespace-uri()
+        .node?.node;
+
+    final sig = SignedXml();
+    sig.keyInfoProvider = FileKeyInfo('./test/static/saml_external_ns.pem');
+    expect(() => sig.loadSignature(signature), throwsArgumentError);
+  });
 }

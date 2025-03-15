@@ -202,6 +202,48 @@ class SignedXml {
 
     final doc = parseFromString(xml);
 
+    // Reset the references as only references from our re-parsed signedInfo node can be trusted
+    this.references.clear();
+
+    final unverifiedSignedInfoCanon = _getCanonSignedInfoXml(doc);
+    if (unverifiedSignedInfoCanon.isEmpty) {
+      if (callback != null) {
+        callback(ArgumentError('Canonical signed info cannot be empty'), false);
+        return false;
+      }
+
+      throw ArgumentError('Canonical signed info cannot be empty');
+    }
+
+    // unsigned, verify later to keep with consistent callback behavior
+    final parsedUnverifiedSignedInfo =
+        parseFromString(unverifiedSignedInfoCanon);
+    final unverifiedSignedInfoDoc = parsedUnverifiedSignedInfo.document;
+    if (unverifiedSignedInfoDoc == null) {
+      if (callback != null) {
+        callback(
+            ArgumentError('Could not parse signedInfoCanon into a document'),
+            false);
+        return false;
+      }
+
+      throw ArgumentError('Could not parse signedInfoCanon into a document');
+    }
+
+    final references = findChilds(unverifiedSignedInfoDoc, 'Reference');
+    if (references.isEmpty) {
+      if (callback != null) {
+        callback(ArgumentError('could not find any Reference elements'), false);
+        return false;
+      }
+
+      throw ArgumentError('could not find any Reference elements');
+    }
+
+    for (var reference in references) {
+      _loadReference(reference);
+    }
+
     if (!_validateReferences(doc)) {
       if (callback == null) {
         return false;
@@ -211,6 +253,7 @@ class SignedXml {
       }
     }
 
+    // Stage B: Take the signature algorithm and key and verify the SignatureValue against the canonicalized SignedInfo
     if (callback == null) {
       //Synchronous flow
       if (!_validateSignatureValue(doc)) {
@@ -236,6 +279,10 @@ class SignedXml {
     final signedInfo = findChilds(_signatureNode!, 'SignedInfo');
     if (signedInfo.isEmpty) {
       throw ArgumentError('could not find SignedInfo element in the message');
+    }
+    if (signedInfo.length > 1) {
+      throw ArgumentError(
+          'could not get canonicalized signed info for a signature that contains multiple SignedInfo nodes');
     }
 
     // Since in Dart the doc is always a XmlDocument
@@ -321,7 +368,9 @@ class SignedXml {
 
   bool _validateReferences(XmlDocument doc) {
     for (final ref in references) {
-      final uri = ref.uri.startsWith('#') ? ref.uri.substring(1) : ref.uri;
+      final uri = ref.uri != null
+          ? (ref.uri!.startsWith('#') ? ref.uri!.substring(1) : ref.uri!)
+          : '';
       final elem = <XPathNode<XmlNode>>[];
 
       if (uri == '') {
@@ -399,15 +448,46 @@ class SignedXml {
       throw ArgumentError('could not find SignatureMethod/@Algorithm element');
     }
     signatureAlgorithm = nodes.attr ?? '';
-    references.clear();
-    final refs = XmlXPath.node(signatureNode)
-        .query(".//*[local-name()='SignedInfo']/*[local-name()='Reference']");
-    if (refs.nodes.isEmpty) {
+    final signedInfoNodes = findChilds(signatureNode, 'SignedInfo');
+    if (signedInfoNodes.isEmpty) {
+      throw ArgumentError('no signed info node found');
+    }
+    if (signedInfoNodes.length > 1) {
+      throw ArgumentError(
+          'could not load signature that contains multiple SignedInfo nodes');
+    }
+
+    // Try to operate on the c14n version of signedInfo. This forces the initial getReferences()
+    // API call to always return references that are loaded under the canonical SignedInfo
+    // in the case that the client access the .references **before** signature verification.
+
+    // Ensure canonicalization algorithm is exclusive, otherwise we'd need the entire document
+    var canonicalizationAlgorithmForSignedInfo = canonicalizationAlgorithm;
+    if (canonicalizationAlgorithmForSignedInfo ==
+            "http://www.w3.org/TR/2001/REC-xml-c14n-20010315" ||
+        canonicalizationAlgorithmForSignedInfo ==
+            "http://www.w3.org/TR/2001/REC-xml-c14n-20010315#WithComments") {
+      canonicalizationAlgorithmForSignedInfo =
+          "http://www.w3.org/2001/10/xml-exc-c14n#";
+    }
+
+    final temporaryCanonSignedInfo = _getCanonXml(
+      [canonicalizationAlgorithm],
+      signedInfoNodes.first,
+    );
+    final temporaryCanonSignedInfoXml =
+        parseFromString(temporaryCanonSignedInfo);
+    final signedInfoDoc = temporaryCanonSignedInfoXml.rootElement;
+
+    this.references.clear();
+
+    final references = findChilds(signedInfoDoc, 'Reference');
+    if (references.isEmpty) {
       throw ArgumentError('could not find any Reference elements');
     }
 
-    for (final ref in refs.nodes) {
-      _loadReference(ref.node);
+    for (final ref in references) {
+      _loadReference(ref);
     }
 
     signatureValue =
@@ -439,12 +519,16 @@ class SignedXml {
     if (nodes.isEmpty) {
       throw ArgumentError('could not find DigestValue in reference $ref');
     }
-    if (nodes.first.firstChild == null ||
-        (nodes.first.firstChild?.value ?? '') == '') {
+
+    if (nodes.length > 1) {
       throw ArgumentError(
-          'could not find the value of DigestValue in ${nodes.first}');
+          'could not load reference for a node that contains multiple DigestValue nodes: $ref');
     }
-    final digestValue = nodes.first.firstChild!.value;
+
+    final digestValue = nodes.first.innerText;
+    if (digestValue.isEmpty) {
+      throw ArgumentError('could not find the value of DigestValue in $ref');
+    }
 
     final transforms = <String>[];
     String? inclusiveNamespacesPrefixList;
@@ -490,14 +574,9 @@ class SignedXml {
       transforms.add('http://www.w3.org/TR/2001/REC-xml-c14n-20010315');
     }
 
-    addReference(
-        null,
-        transforms,
-        digestAlgo,
-        findAttr(ref, 'URI')?.value ?? '',
-        digestValue,
-        inclusiveNamespacesPrefixList,
-        false);
+    final refUri = ref.getAttribute('URI');
+    addReference(null, transforms, digestAlgo, refUri, digestValue,
+        inclusiveNamespacesPrefixList, false);
   }
 
   void addReference(String? xpath,
@@ -1079,7 +1158,7 @@ class _Reference {
   String? xpath;
   final List<String> transforms;
   final String digestAlgorithm;
-  String uri;
+  String? uri;
   final String digestValue;
   final String? inclusiveNamespacesPrefixList;
   final bool isEmptyUri;

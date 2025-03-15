@@ -1,6 +1,15 @@
-## 3.2.0
+## 3.2.1
 
 * The last version that supports Dart 2.x
+* Follow xml-crypto 3.2.1
+
+  This addresses two critical CVE:
+
+    * CVE-2025-29774
+    * CVE-2025-29775
+
+## 3.2.0
+
 * Follow xml-crypto 3.2.0
   * Use inclusiveNamespacesPrefixList to generate InclusiveNamespaces
   * Add support for appending attributes to KeyInfo element
