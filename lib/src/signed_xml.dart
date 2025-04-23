@@ -144,6 +144,7 @@ class SignedXml {
   String? keyInfo;
   final idAttributes = ['Id', 'ID', 'id'];
   late List<String> implicitTransforms;
+  final customSignatureChilds = <String>[];
 
   /// Xml signature implementation
   ///
@@ -596,6 +597,10 @@ class SignedXml {
         isEmptyUri));
   }
 
+  void addCustomSignatureChild(String node) {
+    customSignatureChilds.add(node);
+  }
+
   /// Compute the signature of the given xml (using the already defined settings)
   ///
   /// Options:
@@ -670,6 +675,7 @@ class SignedXml {
         StringBuffer('<${currentPrefix}Signature ${signatureAttrs.join(' ')}>')
           ..write(_createSignedInfo(doc, prefix))
           ..write(_getKeyInfo(prefix))
+          ..write(customSignatureChilds.join(''))
           ..write('</${currentPrefix}Signature>');
 
     _originalXmlWithIds = doc.toString();
@@ -801,8 +807,18 @@ class SignedXml {
     for (final ref in references) {
       final nodes = XmlXPath.node(doc).query(ref.xpath ?? '');
       if (nodes.nodes.isEmpty) {
-        throw ArgumentError(
-            'the following xpath cannot be signed because it was not found: ${ref.xpath}');
+        //Search if the xpath is in customSignatureChilds
+        for (final customSignatureChild in customSignatureChilds) {
+          final customSignatureChildXml = parseFromString(customSignatureChild);
+          final customSignatureChildQuery = XmlXPath.node(customSignatureChildXml).query(ref.xpath ?? '');
+          if (customSignatureChildQuery.nodes.isNotEmpty) {
+            nodes.nodes.add(customSignatureChildQuery.node!);
+          } 
+        }
+
+        if (nodes.nodes.isEmpty) {
+          throw ArgumentError('the following xpath cannot be signed because it was not found: ${ref.xpath}');
+        }
       }
 
       for (final node in nodes.nodes) {
