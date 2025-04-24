@@ -1,6 +1,11 @@
-## 3.2.1
+## 3.2.1+1
 
 * The last version that supports Dart 2.x
+* minor: canonicalizationAlgorithmForSignedInfo wasn't used
+* Added support for custom signature childs (#8 by davidadzgi)
+
+## 3.2.1
+
 * Follow xml-crypto 3.2.1
 
   This addresses two critical CVE:

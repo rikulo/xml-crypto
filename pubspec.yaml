@@ -1,5 +1,5 @@
 name: xml_crypto
-version: 3.2.1
+version: 3.2.1+1
 description: |
   Xml digital signature library for Dart. For signing and verifying XML documents.
 homepage: https://github.com/rikulo/xml-crypto
