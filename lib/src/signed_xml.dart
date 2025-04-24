@@ -473,7 +473,7 @@ class SignedXml {
     }
 
     final temporaryCanonSignedInfo = _getCanonXml(
-      [canonicalizationAlgorithm],
+      [canonicalizationAlgorithmForSignedInfo],
       signedInfoNodes.first,
     );
     final temporaryCanonSignedInfoXml =
