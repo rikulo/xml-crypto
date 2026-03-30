@@ -1073,8 +1073,9 @@ class RSASHA1 implements SignatureAlgorithm {
   String getSignature(String xml, Uint8List signingKey,
       [CalculateSignatureCallback? callback]) {
     final rsa = RSAPrivateKey.fromPEM(utf8.decode(signingKey));
-    final res =
+    final raw =
         rsa.signSsaPkcs1v15ToBase64(utf8.encode(xml), hasher: EmsaHasher.sha1);
+    final res = normalizeRsaSignatureBase64(raw, rsa.n);
     if (callback != null) callback(null, res);
     return res;
   }
@@ -1102,8 +1103,9 @@ class RSASHA256 implements SignatureAlgorithm {
   String getSignature(String xml, Uint8List signingKey,
       [CalculateSignatureCallback? callback]) {
     final rsa = RSAPrivateKey.fromPEM(utf8.decode(signingKey));
-    final res = rsa.signSsaPkcs1v15ToBase64(utf8.encode(xml),
+    final raw = rsa.signSsaPkcs1v15ToBase64(utf8.encode(xml),
         hasher: EmsaHasher.sha256);
+    final res = normalizeRsaSignatureBase64(raw, rsa.n);
     if (callback != null) callback(null, res);
     return res;
   }
@@ -1131,8 +1133,9 @@ class RSASHA512 implements SignatureAlgorithm {
   String getSignature(String xml, Uint8List signingKey,
       [CalculateSignatureCallback? callback]) {
     final rsa = RSAPrivateKey.fromPEM(utf8.decode(signingKey));
-    final res = rsa.signSsaPkcs1v15ToBase64(utf8.encode(xml),
+    final raw = rsa.signSsaPkcs1v15ToBase64(utf8.encode(xml),
         hasher: EmsaHasher.sha512);
+    final res = normalizeRsaSignatureBase64(raw, rsa.n);
     if (callback != null) callback(null, res);
     return res;
   }
