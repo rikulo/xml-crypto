@@ -606,9 +606,9 @@ class SignedXml {
   /// Options:
   ///
   /// - `prefix` {String} Adds a prefix for the generated signature tags
-  /// - `attrs` {Map<String, String>} A hash of attributes and values `attrName: value` to add to the signature root node
+  /// - `attrs` {Map&lt;String, String&gt;} A hash of attributes and values `attrName: value` to add to the signature root node
   /// - `location` {{ 'reference': String, 'action': String }}
-  /// - `existingPrefixes` {Map<String, String>} A hash of prefixes and namespaces `prefix: namespace` already in the xml
+  /// - `existingPrefixes` {Map&lt;String, String&gt;} A hash of prefixes and namespaces `prefix: namespace` already in the xml
   ///   An object with a `reference` key which should
   ///   contain a XPath expression, an `action` key which
   ///   should contain one of the following values:
@@ -813,7 +813,7 @@ class SignedXml {
           final customSignatureChildQuery = XmlXPath.node(customSignatureChildXml).query(ref.xpath ?? '');
           if (customSignatureChildQuery.nodes.isNotEmpty) {
             nodes.nodes.add(customSignatureChildQuery.node!);
-          } 
+          }
         }
 
         if (nodes.nodes.isEmpty) {

@@ -26,7 +26,9 @@ void main() {
 
     test('returns the signature unchanged when it is already the correct length', () {
       final bytes = Uint8List(256);
-      for (var i = 0; i < 256; i++) bytes[i] = i & 0xff;
+      for (var i = 0; i < 256; i++) {
+        bytes[i] = i & 0xff;
+      }
       final b64 = base64Encode(bytes);
       expect(normalizeRsaSignatureBase64(b64, modulus2048), b64);
     });
@@ -35,7 +37,9 @@ void main() {
       // Build a 256-byte "expected" signature whose first byte is 0x00.
       final expected = Uint8List(256);
       expected[0] = 0x00;
-      for (var i = 1; i < 256; i++) expected[i] = i & 0xff;
+      for (var i = 1; i < 256; i++) {
+        expected[i] = i & 0xff;
+      }
       final expectedB64 = base64Encode(expected);
 
       // Simulate the ninja bug: the leading 0x00 is dropped → 255-byte signature.
@@ -52,7 +56,9 @@ void main() {
       final expected = Uint8List(256);
       expected[0] = 0x00;
       expected[1] = 0x00;
-      for (var i = 2; i < 256; i++) expected[i] = i & 0xff;
+      for (var i = 2; i < 256; i++) {
+        expected[i] = i & 0xff;
+      }
       final expectedB64 = base64Encode(expected);
 
       final short = expected.sublist(2); // 254 bytes
@@ -80,7 +86,9 @@ void main() {
 
       final expected = Uint8List(128);
       expected[0] = 0x00;
-      for (var i = 1; i < 128; i++) expected[i] = i & 0xff;
+      for (var i = 1; i < 128; i++) {
+        expected[i] = i & 0xff;
+      }
       final expectedB64 = base64Encode(expected);
 
       final short = expected.sublist(1); // 127 bytes
