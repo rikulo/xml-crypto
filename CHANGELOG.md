@@ -1,4 +1,4 @@
-## 3.2.2
+## 4.0.0
 
 * Upgrade dependencies (Now Dart >= 3.8 is needed)
 * fix: normalize RSA signature to modulus width to prevent short SignatureValue in XMLDSig
