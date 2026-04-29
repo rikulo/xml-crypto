@@ -2,7 +2,7 @@
 //History: Wed Feb 09 16:08:31 CST 2022
 // Author: rudyhuang
 
-import 'package:xml/xml.dart';
+import 'package:xml/xml.dart' hide XmlNamespace;
 
 import 'c14n_canonicalization.dart';
 import 'utils.dart';
@@ -27,11 +27,12 @@ class ExclusiveCanonicalization extends C14nCanonicalization {
   }
 
   RenderNsResult _renderNs(
-      XmlElement node,
-      List<XmlNamespace> prefixesInScope,
-      String defaultNs,
-      Map<String, String> defaultNsForPrefix,
-      List<String> inclusiveNamespacesPrefixList) {
+    XmlElement node,
+    List<XmlNamespace> prefixesInScope,
+    String defaultNs,
+    Map<String, String> defaultNsForPrefix,
+    List<String> inclusiveNamespacesPrefixList,
+  ) {
     final res = <String>[];
     var newDefaultNs = defaultNs;
     final currNs = node.name.namespaceUri ?? '';
@@ -89,11 +90,12 @@ class ExclusiveCanonicalization extends C14nCanonicalization {
   }
 
   String _processInner(
-      XmlNode node,
-      List<XmlNamespace> prefixesInScope,
-      String defaultNs,
-      Map<String, String> defaultNsForPrefix,
-      List<String> inclusiveNamespacesPrefixList) {
+    XmlNode node,
+    List<XmlNamespace> prefixesInScope,
+    String defaultNs,
+    Map<String, String> defaultNsForPrefix,
+    List<String> inclusiveNamespacesPrefixList,
+  ) {
     if (node.nodeType == XmlNodeType.COMMENT) {
       return renderComment(node);
     }
@@ -111,7 +113,7 @@ class ExclusiveCanonicalization extends C14nCanonicalization {
             tagName,
             ns.rendered,
             renderAttrs(node, ns.newDefaultNs),
-            '>'
+            '>',
           ];
 
       for (final child in node.children) {
@@ -164,8 +166,11 @@ class ExclusiveCanonicalization extends C14nCanonicalization {
       for (String prefix in prefixList) {
         for (final ancestorNamespace in ancestorNamespaces) {
           if (prefix == ancestorNamespace.prefix) {
-            node.setAttribute('xmlns:$prefix', ancestorNamespace.namespaceURI,
-                namespace: 'http://www.w3.org/2000/xmlns/');
+            node.setAttribute(
+              'xmlns:$prefix',
+              ancestorNamespace.namespaceURI,
+              namespaceUri: 'http://www.w3.org/2000/xmlns/',
+            );
           }
         }
       }

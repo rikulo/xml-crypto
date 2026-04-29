@@ -7,7 +7,6 @@ import 'dart:io';
 import 'package:test/test.dart';
 import 'package:xml_crypto/xml_crypto.dart';
 import 'package:xml_crypto/src/utils.dart';
-import 'package:xpath_selector_xml_parser/xpath_selector_xml_parser.dart';
 
 void main() {
   SignedXml.enableHMAC();
@@ -15,9 +14,10 @@ void main() {
   test('test validating HMAC signature', () {
     final xml = File('./test/static/hmac_signature.xml').readAsStringSync();
     final doc = parseFromString(xml);
-    final signature = XmlXPath.node(doc)
-        .query("/*/*[local-name()='Signature' and namespace()='ds']") // FIXME should use namespace-uri()
-        .node?.node;
+    final signature = findFirstOrNull(
+      doc,
+      "/*/*[local-name()='Signature' and namespace-uri()='http://www.w3.org/2000/09/xmldsig#']",
+    );
 
     final sig = SignedXml();
     sig.keyInfoProvider = FileKeyInfo('./test/static/hmac.key');
@@ -28,9 +28,10 @@ void main() {
   test('test HMAC signature with incorrect key', () {
     final xml = File('./test/static/hmac_signature.xml').readAsStringSync();
     final doc = parseFromString(xml);
-    final signature = XmlXPath.node(doc)
-        .query("/*/*[local-name()='Signature' and namespace()='ds']") // FIXME should use namespace-uri()
-        .node?.node;
+    final signature = findFirstOrNull(
+      doc,
+      "/*/*[local-name()='Signature' and namespace-uri()='http://www.w3.org/2000/09/xmldsig#']",
+    );
 
     final sig = SignedXml();
     sig.keyInfoProvider = FileKeyInfo('./test/static/hmac-foobar.key');
@@ -39,11 +40,12 @@ void main() {
   });
 
   test('test create and validate HMAC signature', () {
-    final xml = '<library>'
-    '<book>'
-    '<name>Harry Potter</name>'
-    '</book>'
-    '</library>';
+    final xml =
+        '<library>'
+        '<book>'
+        '<name>Harry Potter</name>'
+        '</book>'
+        '</library>';
     final sig = SignedXml();
     sig.signingKey = File('./test/static/hmac.key').readAsBytesSync();
     sig.signatureAlgorithm = 'http://www.w3.org/2000/09/xmldsig#hmac-sha1';
@@ -51,9 +53,10 @@ void main() {
     sig.computeSignature(xml);
 
     final doc = parseFromString(sig.signedXml);
-    final signature = XmlXPath.node(doc)
-        .query("/*/*[local-name()='Signature']") // FIXME should use namespace-uri()
-        .node?.node;
+    final signature = findFirstOrNull(
+      doc,
+      "/*/*[local-name()='Signature' and namespace-uri()='http://www.w3.org/2000/09/xmldsig#']",
+    );
 
     final verify = SignedXml();
     verify.keyInfoProvider = FileKeyInfo('./test/static/hmac.key');

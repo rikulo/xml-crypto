@@ -10,9 +10,7 @@ import 'package:crypto/crypto.dart';
 import 'package:ninja/asymmetric/rsa/encoder/emsaPkcs1v15.dart';
 import 'package:ninja/ninja.dart';
 import 'package:rsa_pkcs/rsa_pkcs.dart' show RSAPKCSParser;
-import 'package:xml/xml.dart';
-import 'package:xpath_selector/xpath_selector.dart';
-import 'package:xpath_selector_xml_parser/xpath_selector_xml_parser.dart';
+import 'package:xml/xml.dart' hide XmlNamespace;
 
 import 'c14n_canonicalization.dart';
 import 'enveloped_signature.dart';
@@ -24,16 +22,23 @@ typedef CalculateSignatureCallback = void Function(
 typedef ValidateSignatureCallback = void Function(Error? e, bool valid);
 typedef ComputeSignatureCallback = void Function(Error? e, SignedXml? instance);
 
-List<XmlNamespace> findAncestorNs(XmlDocument doc, String docSubsetXpath,
-    [namespaceResolver]) {
-  final docSubset = XmlXPath.node(doc)
-      .query(docSubsetXpath); // FIXME: supports namespaceResolver
-  final result = docSubset.node;
-  if (result == null) {
+List<XmlNamespace> findAncestorNs(
+  XmlDocument doc,
+  String docSubsetXpath, [
+  namespaceResolver,
+]) {
+  if (docSubsetXpath.isEmpty) {
     return [];
   }
 
-  final node = result.node;
+  final node = findFirstOrNull(
+    doc,
+    docSubsetXpath,
+  ); // FIXME: supports namespaceResolver
+  if (node == null) {
+    return [];
+  }
+
   final ancestorNs = _collectAncestorNamespaces(node);
   final ancestorNsWithoutDuplicate = <XmlNamespace>[];
   for (final ns in ancestorNs) {
@@ -96,7 +101,7 @@ List<XmlNamespace> _collectAncestorNamespaces(XmlNode node,
 
 class SignedXml {
   static final Map<String, CanonicalizationAlgorithm>
-      canonicalizationAlgorithms = {
+  canonicalizationAlgorithms = {
     'http://www.w3.org/TR/2001/REC-xml-c14n-20010315': C14nCanonicalization(),
     'http://www.w3.org/TR/2001/REC-xml-c14n-20010315#WithComments':
         C14nCanonicalizationWithComments(),
@@ -122,7 +127,7 @@ class SignedXml {
   };
 
   static final Map<String, String> defaultNsForPrefix = {
-    'ds': 'http://www.w3.org/2000/09/xmldsig#',
+    'ds': xmlDsigNamespace,
   };
 
   final Map<String, dynamic> options;
@@ -155,7 +160,7 @@ class SignedXml {
         'http://www.w3.org/2000/09/xmldsig#rsa-sha1';
     canonicalizationAlgorithm =
         options['canonicalizationAlgorithm'] as String? ??
-            'http://www.w3.org/2001/10/xml-exc-c14n#';
+        'http://www.w3.org/2001/10/xml-exc-c14n#';
     inclusiveNamespacesPrefixList =
         options['inclusiveNamespacesPrefixList'] as String? ?? '';
 
@@ -223,7 +228,7 @@ class SignedXml {
     if (unverifiedSignedInfoDoc == null) {
       if (callback != null) {
         callback(
-            ArgumentError('Could not parse signedInfoCanon into a document'),
+          ArgumentError('Could not parse signedInfoCanon into a document'),
             false);
         return false;
       }
@@ -277,7 +282,11 @@ class SignedXml {
   }
 
   String _getCanonSignedInfoXml(XmlDocument doc) {
-    final signedInfo = findChilds(_signatureNode!, 'SignedInfo');
+    final signedInfo = findChilds(
+      _signatureNode!,
+      'SignedInfo',
+      xmlDsigNamespace,
+    );
     if (signedInfo.isEmpty) {
       throw ArgumentError('could not find SignedInfo element in the message');
     }
@@ -295,8 +304,10 @@ class SignedXml {
     // }
 
     // Search for ancestor namespaces before canonicalization.
-    final ancestorNamespaces =
-        findAncestorNs(doc, "//*[local-name()='SignedInfo']");
+    final ancestorNamespaces = findAncestorNs(
+      doc,
+      "//*[local-name()='SignedInfo' and namespace-uri()='$xmlDsigNamespace']",
+    );
     final c14nOptions = <String, dynamic>{
       'ancestorNamespaces': ancestorNamespaces,
     };
@@ -306,8 +317,10 @@ class SignedXml {
 
   String _getCanonReferenceXml(XmlDocument doc, _Reference ref, XmlNode node) {
     // Search for ancestor namespaces before canonicalization.
-    if (ref.transforms.isNotEmpty) {
+    if (ref.transforms.isNotEmpty && ref.xpath?.isNotEmpty == true) {
       ref.ancestorNamespaces = findAncestorNs(doc, ref.xpath ?? '');
+    } else {
+      ref.ancestorNamespaces = const <XmlNamespace>[];
     }
 
     final c14nOptions = <String, dynamic>{
@@ -372,30 +385,25 @@ class SignedXml {
       final uri = ref.uri != null
           ? (ref.uri!.startsWith('#') ? ref.uri!.substring(1) : ref.uri!)
           : '';
-      final elem = <XPathNode<XmlNode>>[];
+      final elem = <XmlNode>[];
 
       if (uri == '') {
-        elem.addAll(XmlXPath.node(doc).query('//*').nodes);
+        elem.addAll(findNodes(doc, '//*'));
       } else if (uri.contains('\'')) {
         // xpath injection
         throw UnsupportedError('Cannot validate a uri with quotes inside it');
       } else {
-        var elemXpath = '';
-        var numElementsForId = 0;
-        for (final id in idAttributes) {
-          final tmpElemXpath = '//*[@$id="$uri"]';
-          final tmpElem = XmlXPath.node(doc).query(tmpElemXpath).nodes;
-          numElementsForId += tmpElem.length;
-          if (tmpElem.isNotEmpty) {
-            elem
-              ..clear()
-              ..addAll(tmpElem);
-            elemXpath = tmpElemXpath;
-          }
+        final elemXpath = _buildReferenceLookupXPath(uri);
+        final tmpElem = findNodes(doc, elemXpath);
+        final numElementsForId = tmpElem.length;
+        if (tmpElem.isNotEmpty) {
+          elem
+            ..clear()
+            ..addAll(tmpElem);
         }
         if (numElementsForId > 1) {
           throw ArgumentError(
-              'Cannot validate a document which contains multiple elements with the '
+            'Cannot validate a document which contains multiple elements with the '
               'same value for the ID / Id / Id attributes, in order to prevent '
               'signature wrapping attack.');
         }
@@ -405,22 +413,30 @@ class SignedXml {
 
       if (elem.isEmpty) {
         validationErrors.add(
-            'invalid signature: the signature references an element'
+          'invalid signature: the signature references an element'
             ' with uri ${ref.uri} but could not find such element in the xml');
         return false;
       }
 
-      final canonXml = _getCanonReferenceXml(doc, ref, elem.first.node);
+      final canonXml = _getCanonReferenceXml(doc, ref, elem.first);
       final hash = _findHashAlgorithm(ref.digestAlgorithm);
       final digest = hash.getHash(canonXml);
       if (!_validateDigestValue(digest, ref.digestValue)) {
         validationErrors.add('invalid signature: for uri ${ref.uri}'
-            ' calculated digest is $digest'
+          ' calculated digest is $digest'
             ' but the xml to validate supplies digest ${ref.digestValue}');
         return false;
       }
     }
     return true;
+  }
+
+  String _buildReferenceLookupXPath(String uri) {
+    final predicates = <String>[
+      for (final id in idAttributes) '@$id="$uri"',
+      '@*[local-name()="Id" and namespace-uri()="$wsSecurityUtilityNamespace"]="$uri"',
+    ];
+    return '//*[${predicates.join(' or ')}]';
   }
 
   bool _validateDigestValue(String digest, String expectedDigest) =>
@@ -436,20 +452,11 @@ class SignedXml {
 
     _signatureXml = signatureNode.toString();
 
-    var nodes = XmlXPath.node(signatureNode)
-        .query(".//*[local-name()='CanonicalizationMethod']/@Algorithm");
-    if (nodes.node == null) {
-      throw ArgumentError(
-          'could not find CanonicalizationMethod/@Algorithm element');
-    }
-    canonicalizationAlgorithm = nodes.attr ?? '';
-    nodes = XmlXPath.node(signatureNode)
-        .query(".//*[local-name()='SignatureMethod']/@Algorithm");
-    if (nodes.node == null) {
-      throw ArgumentError('could not find SignatureMethod/@Algorithm element');
-    }
-    signatureAlgorithm = nodes.attr ?? '';
-    final signedInfoNodes = findChilds(signatureNode, 'SignedInfo');
+    final signedInfoNodes = findChilds(
+      signatureNode,
+      'SignedInfo',
+      xmlDsigNamespace,
+    );
     if (signedInfoNodes.isEmpty) {
       throw ArgumentError('no signed info node found');
     }
@@ -457,6 +464,41 @@ class SignedXml {
       throw ArgumentError(
           'could not load signature that contains multiple SignedInfo nodes');
     }
+
+    final canonicalizationMethodNodes = findChilds(
+      signedInfoNodes.first,
+      'CanonicalizationMethod',
+      xmlDsigNamespace,
+    );
+    if (canonicalizationMethodNodes.isEmpty) {
+      throw ArgumentError(
+        'could not find CanonicalizationMethod/@Algorithm element',
+      );
+    }
+    final canonicalizationAttr = findAttr(
+      canonicalizationMethodNodes.first,
+      'Algorithm',
+    );
+    if (canonicalizationAttr == null) {
+      throw ArgumentError(
+        'could not find CanonicalizationMethod/@Algorithm element',
+      );
+    }
+    canonicalizationAlgorithm = canonicalizationAttr.value;
+
+    final signatureMethodNodes = findChilds(
+      signedInfoNodes.first,
+      'SignatureMethod',
+      xmlDsigNamespace,
+    );
+    if (signatureMethodNodes.isEmpty) {
+      throw ArgumentError('could not find SignatureMethod/@Algorithm element');
+    }
+    final signatureAttr = findAttr(signatureMethodNodes.first, 'Algorithm');
+    if (signatureAttr == null) {
+      throw ArgumentError('could not find SignatureMethod/@Algorithm element');
+    }
+    signatureAlgorithm = signatureAttr.value;
 
     // Try to operate on the c14n version of signedInfo. This forces the initial getReferences()
     // API call to always return references that are loaded under the canonical SignedInfo
@@ -482,7 +524,7 @@ class SignedXml {
 
     this.references.clear();
 
-    final references = findChilds(signedInfoDoc, 'Reference');
+    final references = findChilds(signedInfoDoc, 'Reference', xmlDsigNamespace);
     if (references.isEmpty) {
       throw ArgumentError('could not find any Reference elements');
     }
@@ -491,19 +533,25 @@ class SignedXml {
       _loadReference(ref);
     }
 
-    signatureValue =
-        findFirst(signatureNode, ".//*[local-name()='SignatureValue']/text()")
-            .innerText
-            .replaceAll(RegExp(r'\r?\n'), '');
-    keyInfo = XmlXPath.node(signatureNode)
-        .query(".//*[local-name()='KeyInfo']")
-        .node
-        ?.node
-        .toString();
+    final signatureValueNodes = findChilds(
+      signatureNode,
+      'SignatureValue',
+      xmlDsigNamespace,
+    );
+    if (signatureValueNodes.isEmpty) {
+      throw ArgumentError('could not find SignatureValue element');
+    }
+    signatureValue = signatureValueNodes.first.innerText.replaceAll(
+      RegExp(r'\r?\n'),
+      '',
+    );
+
+    final keyInfoNodes = findChilds(signatureNode, 'KeyInfo', xmlDsigNamespace);
+    keyInfo = keyInfoNodes.isEmpty ? null : keyInfoNodes.first.toString();
   }
 
   void _loadReference(XmlNode ref) {
-    var nodes = findChilds(ref, 'DigestMethod');
+    var nodes = findChilds(ref, 'DigestMethod', xmlDsigNamespace);
     if (nodes.isEmpty) {
       throw ArgumentError('could not find DigestMethod in reference $ref');
     }
@@ -516,7 +564,7 @@ class SignedXml {
     }
     final digestAlgo = attr.value;
 
-    nodes = findChilds(ref, 'DigestValue');
+    nodes = findChilds(ref, 'DigestValue', xmlDsigNamespace);
     if (nodes.isEmpty) {
       throw ArgumentError('could not find DigestValue in reference $ref');
     }
@@ -533,10 +581,14 @@ class SignedXml {
 
     final transforms = <String>[];
     String? inclusiveNamespacesPrefixList;
-    nodes = findChilds(ref, 'Transforms');
+    nodes = findChilds(ref, 'Transforms', xmlDsigNamespace);
     if (nodes.isNotEmpty) {
       final transformsNode = nodes.first;
-      final transformsAll = findChilds(transformsNode, 'Transform');
+      final transformsAll = findChilds(
+        transformsNode,
+        'Transform',
+        xmlDsigNamespace,
+      );
       for (final trans in transformsAll) {
         transforms.add(findAttr(trans, 'Algorithm')?.value ?? '');
       }
@@ -580,21 +632,26 @@ class SignedXml {
         inclusiveNamespacesPrefixList, false);
   }
 
-  void addReference(String? xpath,
-      [List<String>? transforms,
-      String? digestAlgorithm,
-      String? uri,
-      String? digestValue,
-      String? inclusiveNamespacesPrefixList,
-      bool isEmptyUri = false]) {
-    references.add(_Reference(
+  void addReference(
+    String? xpath, [
+    List<String>? transforms,
+    String? digestAlgorithm,
+    String? uri,
+    String? digestValue,
+    String? inclusiveNamespacesPrefixList,
+    bool isEmptyUri = false,
+  ]) {
+    references.add(
+      _Reference(
         xpath,
         transforms ?? ['http://www.w3.org/2001/10/xml-exc-c14n#'],
         digestAlgorithm ?? 'http://www.w3.org/2000/09/xmldsig#sha1',
         uri ?? '',
         digestValue ?? '',
         inclusiveNamespacesPrefixList,
-        isEmptyUri));
+        isEmptyUri,
+      ),
+    );
   }
 
   void addCustomSignatureChild(String node) {
@@ -643,7 +700,7 @@ class SignedXml {
 
     if (!validActions.contains(location['action'])) {
       final err = ArgumentError(
-          'location.action option has an invalid action:  ${location['action']},'
+        'location.action option has an invalid action:  ${location['action']},'
           'must be any of the following values: ${validActions.join(', ')}');
       if (callback == null) {
         throw err;
@@ -692,8 +749,8 @@ class SignedXml {
     final xml2 = parseFromString(dummySignatureWrapper);
     final signatureDoc = xml2.rootElement.firstChild!.copy();
 
-    final referenceNodeQuery = XmlXPath.node(doc).query(location['reference']!);
-    if (referenceNodeQuery.nodes.isEmpty) {
+    final referenceNodeQuery = findNodes(doc, location['reference']!);
+    if (referenceNodeQuery.isEmpty) {
       final err = ArgumentError(
           'the following xpath cannot be used because it was not found: ${location['reference']}');
       if (callback == null) {
@@ -704,7 +761,7 @@ class SignedXml {
       }
     }
 
-    final referenceNode = referenceNodeQuery.node!.node;
+    final referenceNode = referenceNodeQuery.first;
 
     if (location['action'] == 'append') {
       referenceNode.children.add(signatureDoc);
@@ -805,27 +862,30 @@ class SignedXml {
     prefix = prefix.isNotEmpty ? '$prefix:' : prefix;
 
     for (final ref in references) {
-      final nodes = XmlXPath.node(doc).query(ref.xpath ?? '');
-      if (nodes.nodes.isEmpty) {
+      final nodes = findNodes(doc, ref.xpath ?? '').toList();
+      if (nodes.isEmpty) {
         //Search if the xpath is in customSignatureChilds
         for (final customSignatureChild in customSignatureChilds) {
           final customSignatureChildXml = parseFromString(customSignatureChild);
-          final customSignatureChildQuery = XmlXPath.node(customSignatureChildXml).query(ref.xpath ?? '');
-          if (customSignatureChildQuery.nodes.isNotEmpty) {
-            nodes.nodes.add(customSignatureChildQuery.node!);
+          final customSignatureChildQuery = findNodes(
+            customSignatureChildXml,
+            ref.xpath ?? '',
+          );
+          if (customSignatureChildQuery.isNotEmpty) {
+            nodes.add(customSignatureChildQuery.first);
           }
         }
 
-        if (nodes.nodes.isEmpty) {
+        if (nodes.isEmpty) {
           throw ArgumentError('the following xpath cannot be signed because it was not found: ${ref.xpath}');
         }
       }
 
-      for (final node in nodes.nodes) {
+      for (final node in nodes) {
         if (ref.isEmptyUri) {
           res.write('<${prefix}Reference URI="">');
         } else {
-          final id = _ensureHasId(node.node);
+          final id = _ensureHasId(node);
           ref.uri = id;
           res.write('<${prefix}Reference URI="#$id">');
         }
@@ -846,7 +906,7 @@ class SignedXml {
           }
         }
 
-        final canonXml = _getCanonReferenceXml(doc, ref, node.node);
+        final canonXml = _getCanonReferenceXml(doc, ref, node);
         final digestAlgorithm = _findHashAlgorithm(ref.digestAlgorithm);
         res
           ..write('</${prefix}Transforms>')
@@ -891,8 +951,7 @@ class SignedXml {
   String _ensureHasId(XmlNode node) {
     XmlAttribute? attr;
     if (idMode == 'wssecurity') {
-      attr = findAttr(node, 'Id',
-          'http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd');
+      attr = findAttr(node, 'Id', wsSecurityUtilityNamespace);
     } else {
       for (final id in idAttributes) {
         attr = findAttr(node, id);
@@ -906,12 +965,12 @@ class SignedXml {
     final id = '_${_id++}';
 
     if (idMode == 'wssecurity') {
-      node.setAttribute('xmlns:wsu',
-          'http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd',
-          namespace: 'http://www.w3.org/2000/xmlns/');
-      node.setAttribute('wsu:Id', id,
-          namespace:
-              'http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd');
+      node.setAttribute(
+        'xmlns:wsu',
+        wsSecurityUtilityNamespace,
+        namespaceUri: 'http://www.w3.org/2000/xmlns/',
+      );
+      node.setAttribute('wsu:Id', id, namespaceUri: wsSecurityUtilityNamespace);
     } else {
       node.setAttribute('Id', id);
     }

@@ -5,12 +5,11 @@
 import 'package:test/test.dart';
 import 'package:xml_crypto/src/exclusive_canonicalization.dart';
 import 'package:xml_crypto/src/utils.dart';
-import 'package:xpath_selector_xml_parser/xpath_selector_xml_parser.dart';
 
 void testC14nCanonicalization(String xml, String xpath, String expected,
     {String? inclusiveNamespacesPrefixList, Map<String, String>? defaultNsForPrefix}) {
   final doc = parseFromString(xml);
-  final elem = XmlXPath.node(doc).query(xpath).node?.node;
+  final elem = findFirstOrNull(doc, xpath);
   if (elem == null) {
     throw Exception('$xpath not found in $xml');
   }
@@ -42,10 +41,10 @@ void main() {
 
   test('Exclusive canonicalization works on xml with prefixed namespaces defined in output nodes', () {
     final xml = "<root><p:child xmlns:p=\"s\"><inner>123</inner></p:child></root>";
-    final xpath = "//*[local-name()='child']";
-    final expected = '<p:child xmlns:p="s"><inner>123</inner></p:child>';
+      final xpath = "//*[local-name()='child']";
+      final expected = '<p:child xmlns:p="s"><inner>123</inner></p:child>';
 
-    testC14nCanonicalization(xml, xpath, expected);
+      testC14nCanonicalization(xml, xpath, expected);
   });
 
   test('element used prefixed ns which is also the default', () {
@@ -67,31 +66,31 @@ void main() {
 
   test('Exclusive canonicalization works on xml with prefixed namespaces defined in output nodes. ns definition is not duplicated on each usage', () {
     final xml = "<root><p:child xmlns:p=\"ns\"><p:inner>123</p:inner></p:child></root>";
-    final xpath = "//*[local-name()='child']";
+      final xpath = "//*[local-name()='child']";
     final expected = "<p:child xmlns:p=\"ns\"><p:inner>123</p:inner></p:child>";
 
-    testC14nCanonicalization(xml, xpath, expected);
+      testC14nCanonicalization(xml, xpath, expected);
   });
 
   test('Exclusive canonicalization works on xml with prefixed namespaces defined in output nodes but before used', () {
     final xml = "<root><child xmlns:p=\"ns\"><p:inner>123</p:inner></child></root>";
-    final xpath = "//*[local-name()='child']";
-    final expected = "<child><p:inner xmlns:p=\"ns\">123</p:inner></child>";
+      final xpath = "//*[local-name()='child']";
+      final expected = "<child><p:inner xmlns:p=\"ns\">123</p:inner></child>";
 
-    testC14nCanonicalization(xml, xpath, expected);
+      testC14nCanonicalization(xml, xpath, expected);
   });
 
   test('Exclusive canonicalization works on xml with prefixed namespaces defined outside output nodes', () {
-    final xml = "<root xmlns:p=\"ns\"><p:child>123</p:child></root>";
-    final xpath = "//*[local-name()='child']";
-    final expected = "<p:child xmlns:p=\"ns\">123</p:child>";
+      final xml = "<root xmlns:p=\"ns\"><p:child>123</p:child></root>";
+      final xpath = "//*[local-name()='child']";
+      final expected = "<p:child xmlns:p=\"ns\">123</p:child>";
 
-    testC14nCanonicalization(xml, xpath, expected);
+      testC14nCanonicalization(xml, xpath, expected);
   });
 
   test('Exclusive canonicalization works on xml with prefixed namespace defined in inclusive list', () {
     final xml = "<root xmlns:p=\"ns\"><p:child xmlns:inclusive=\"ns2\"><inclusive:inner xmlns:inclusive=\"ns2\">123</inclusive:inner></p:child></root>";
-    final xpath = "//*[local-name()='child']";
+      final xpath = "//*[local-name()='child']";
     final expected = "<p:child xmlns:inclusive=\"ns2\" xmlns:p=\"ns\"><inclusive:inner>123</inclusive:inner></p:child>";
 
     testC14nCanonicalization(xml, xpath, expected, inclusiveNamespacesPrefixList: 'inclusive');
@@ -99,7 +98,7 @@ void main() {
 
   test('Exclusive canonicalization works on xml with multiple prefixed namespaces defined in inclusive list', () {
     final xml = "<root xmlns:p=\"ns\"><p:child xmlns:inclusive=\"ns2\" xmlns:inclusive2=\"ns3\"><inclusive:inner xmlns:inclusive=\"ns2\">123</inclusive:inner><inclusive2:inner xmlns:inclusive2=\"ns3\">456</inclusive2:inner></p:child></root>";
-    final xpath = "//*[local-name()='child']";
+      final xpath = "//*[local-name()='child']";
     final expected = "<p:child xmlns:inclusive=\"ns2\" xmlns:inclusive2=\"ns3\" xmlns:p=\"ns\"><inclusive:inner>123</inclusive:inner><inclusive2:inner>456</inclusive2:inner></p:child>";
 
     testC14nCanonicalization(xml, xpath, expected, inclusiveNamespacesPrefixList: 'inclusive inclusive2');
@@ -107,7 +106,7 @@ void main() {
 
   test('Exclusive canonicalization works on xml with prefixed namespace defined in inclusive list defined outside output nodes', () {
     final xml = "<root xmlns:p=\"ns\" xmlns:inclusive=\"ns2\"><p:child><inclusive:inner xmlns:inclusive=\"ns2\">123</inclusive:inner></p:child></root>";
-    final xpath = "//*[local-name()='child']";
+      final xpath = "//*[local-name()='child']";
     final expected = "<p:child xmlns:p=\"ns\"><inclusive:inner xmlns:inclusive=\"ns2\">123</inclusive:inner></p:child>";
 
     testC14nCanonicalization(xml, xpath, expected, inclusiveNamespacesPrefixList: 'inclusive');
@@ -115,50 +114,50 @@ void main() {
 
   test('Exclusive canonicalization works on xml with prefixed namespace defined in inclusive list used on attribute', () {
     final xml = "<root xmlns:p=\"ns\"><p:child xmlns:inclusive=\"ns2\"><p:inner foo=\"inclusive:bar\">123</p:inner></p:child></root>";
-    final xpath = "//*[local-name()='child']";
+      final xpath = "//*[local-name()='child']";
     final expected = "<p:child xmlns:inclusive=\"ns2\" xmlns:p=\"ns\"><p:inner foo=\"inclusive:bar\">123</p:inner></p:child>";
 
     testC14nCanonicalization(xml, xpath, expected, inclusiveNamespacesPrefixList: 'inclusive');
   });
 
   test('Exclusive canonicalization works on xml with default namespace inside output nodes', () {
-    final xml = "<root><child><inner xmlns=\"ns\">123</inner></child></root>";
-    final xpath = "//*[local-name()='child']";
-    final expected = "<child><inner xmlns=\"ns\">123</inner></child>";
+      final xml = "<root><child><inner xmlns=\"ns\">123</inner></child></root>";
+      final xpath = "//*[local-name()='child']";
+      final expected = "<child><inner xmlns=\"ns\">123</inner></child>";
 
-    testC14nCanonicalization(xml, xpath, expected);
+      testC14nCanonicalization(xml, xpath, expected);
   });
 
   test('Exclusive canonicalization works on xml with multiple different default namespaces', () {
     final xml = "<root xmlns=\"ns1\"><child xmlns=\"ns2\"><inner xmlns=\"ns3\">123</inner></child></root>";
-    final xpath = "//*[local-name()='child']";
+      final xpath = "//*[local-name()='child']";
     final expected = "<child xmlns=\"ns2\"><inner xmlns=\"ns3\">123</inner></child>";
 
-    testC14nCanonicalization(xml, xpath, expected);
+      testC14nCanonicalization(xml, xpath, expected);
   });
 
   test('Exclusive canonicalization works on xml with multiple similar default namespaces', () {
     final xml = "<root xmlns=\"ns1\"><child xmlns=\"ns2\"><inner xmlns=\"ns2\">123</inner></child></root>";
-    final xpath = "//*[local-name()='child']";
-    final expected = "<child xmlns=\"ns2\"><inner>123</inner></child>";
+      final xpath = "//*[local-name()='child']";
+      final expected = "<child xmlns=\"ns2\"><inner>123</inner></child>";
 
-    testC14nCanonicalization(xml, xpath, expected);
+      testC14nCanonicalization(xml, xpath, expected);
   });
 
   test('Exclusive canonicalization works on xml with default namespace outside output nodes', () {
-    final xml = "<root xmlns=\"ns\"><child><inner>123</inner></child></root>";
-    final xpath = "//*[local-name()='child']";
-    final expected = "<child xmlns=\"ns\"><inner>123</inner></child>";
+      final xml = "<root xmlns=\"ns\"><child><inner>123</inner></child></root>";
+      final xpath = "//*[local-name()='child']";
+      final expected = "<child xmlns=\"ns\"><inner>123</inner></child>";
 
-    testC14nCanonicalization(xml, xpath, expected);
+      testC14nCanonicalization(xml, xpath, expected);
   });
 
   test('Exclusive canonicalization works when prefixed namespace is defined in output nodes not in the parent chain of who needs it', () {
     final xml = "<root><child><p:inner1 xmlns:p=\"foo\" /><p:inner2 xmlns:p=\"foo\" /></child></root>";
-    final xpath = "//*[local-name()='child']";
+      final xpath = "//*[local-name()='child']";
     final expected = "<child><p:inner1 xmlns:p=\"foo\"></p:inner1><p:inner2 xmlns:p=\"foo\"></p:inner2></child>";
 
-    testC14nCanonicalization(xml, xpath, expected);
+      testC14nCanonicalization(xml, xpath, expected);
   });
 
   test('Exclusive canonicalization works on xml with unordered attributes', () {
@@ -170,11 +169,11 @@ void main() {
   });
 
   test('Exclusive canonicalization sorts upper case attributes before lower case', () {
-    final xml = "<x id=\"\" Id=\"\"></x>";
-    final xpath = "//*[local-name()='x']";
-    final expected = "<x Id=\"\" id=\"\"></x>";
+      final xml = "<x id=\"\" Id=\"\"></x>";
+      final xpath = "//*[local-name()='x']";
+      final expected = "<x Id=\"\" id=\"\"></x>";
 
-    testC14nCanonicalization(xml, xpath, expected);
+      testC14nCanonicalization(xml, xpath, expected);
   });
 
   test('C14N#WithComments retains Comments', () {
@@ -187,34 +186,34 @@ void main() {
 
   test('Exclusive canonicalization works on xml with attributes with different namespace than element', () {
     final xml = "<root><child xmlns=\"bla\" xmlns:p=\"foo\" p:attr=\"val\"><inner>123</inner></child></root>";
-    final xpath = "//*[local-name()='child']";
+      final xpath = "//*[local-name()='child']";
     final expected = "<child xmlns=\"bla\" xmlns:p=\"foo\" p:attr=\"val\"><inner>123</inner></child>";
 
-    testC14nCanonicalization(xml, xpath, expected);
+      testC14nCanonicalization(xml, xpath, expected);
   });
 
   test('Exclusive canonicalization works on xml with attribute values with special characters', () {
     final xml = "<root><child><inner attrEncoded=\"&amp;&lt;>&quot;11&#xD;&#xA;\" attrUnencoded='&>\"11\r\n'>11</inner></child></root>";
-    final xpath = "//*[local-name()='child']";
+      final xpath = "//*[local-name()='child']";
     final expected = "<child><inner attrEncoded=\"&amp;&lt;>&quot;11&#xD;&#xA;\" attrUnencoded=\"&amp;>&quot;11&#xA;\">11</inner></child>";
 
-    testC14nCanonicalization(xml, xpath, expected);
+      testC14nCanonicalization(xml, xpath, expected);
   });
 
   test('Exclusive canonicalization does not normalize whitespace characters into single spaces', () {
     final xml = "<root><child><inner attrEncoded=\"&#xA;&#xD;&#x9;11\" attrUnencoded=\"\n\r\t11\">11</inner></child></root>";
-    final xpath = "//*[local-name()='child']";
+      final xpath = "//*[local-name()='child']";
     final expected = "<child><inner attrEncoded=\"&#xA;&#xD;&#x9;11\" attrUnencoded=\"&#xA;&#xA;&#x9;11\">11</inner></child>";
 
-    testC14nCanonicalization(xml, xpath, expected);
+      testC14nCanonicalization(xml, xpath, expected);
   });
 
   test('Exclusive canonicalization works on xml with element values with special characters', () {
     final xml = "<root><child><innerEncoded>&amp;&lt;>&quot;11&#xD;</innerEncoded><innerUnencoded>&>\"11\r</innerUnencoded></child></root>";
-    final xpath = "//*[local-name()='child']";
+      final xpath = "//*[local-name()='child']";
     final expected = "<child><innerEncoded>&amp;&lt;&gt;\"11&#xD;</innerEncoded><innerUnencoded>&amp;&gt;\"11\n</innerUnencoded></child>";
 
-    testC14nCanonicalization(xml, xpath, expected);
+      testC14nCanonicalization(xml, xpath, expected);
   });
 
   test('Exclusive canonicalization preserves white space in values', () {
@@ -226,11 +225,11 @@ void main() {
   });
 
   test('Exclusive canonicalization does not alter CR-NL (windows line separator) sequences', () {
-    final xml = "<root><child><inner>123</inner>\r\n</child></root>";
-    final xpath = "//*[local-name()='child']";
-    final expected = "<child><inner>123</inner>\n</child>";
+      final xml = "<root><child><inner>123</inner>\r\n</child></root>";
+      final xpath = "//*[local-name()='child']";
+      final expected = "<child><inner>123</inner>\n</child>";
 
-    testC14nCanonicalization(xml, xpath, expected);
+      testC14nCanonicalization(xml, xpath, expected);
   });
 
   test('Exclusive canonicalization preserves and encodes CR white space', () {
@@ -250,11 +249,11 @@ void main() {
   });
 
   test('Exclusive canonicalization turns empty element to start-end tag pairs', () {
-    final xml = "<root><child><inner /></child></root>";
-    final xpath = "//*[local-name()='child']";
-    final expected = "<child><inner></inner></child>";
+      final xml = "<root><child><inner /></child></root>";
+      final xpath = "//*[local-name()='child']";
+      final expected = "<child><inner></inner></child>";
 
-    testC14nCanonicalization(xml, xpath, expected);
+      testC14nCanonicalization(xml, xpath, expected);
   });
 
   test('Exclusive canonicalization preserves empty start-end tag pairs', () {
@@ -266,11 +265,11 @@ void main() {
   });
 
   test('Exclusive canonicalization with empty default namespace outside output nodes', () {
-    final xml = "<root xmlns=\"\"><child><inner>123</inner></child></root>";
-    final xpath = "//*[local-name()='child']";
-    final expected = "<child><inner>123</inner></child>";
+      final xml = "<root xmlns=\"\"><child><inner>123</inner></child></root>";
+      final xpath = "//*[local-name()='child']";
+      final expected = "<child><inner>123</inner></child>";
 
-    testC14nCanonicalization(xml, xpath, expected);
+      testC14nCanonicalization(xml, xpath, expected);
   });
 
   // Uncomment this when this issue is fixed
@@ -284,10 +283,10 @@ void main() {
 
   test('Exclusive canonicalization with empty default namespace inside output nodes', () {
     final xml = "<root xmlns=\"foo\"><child><inner xmlns=\"\">123</inner></child></root>";
-    final xpath = "//*[local-name()='child']";
+      final xpath = "//*[local-name()='child']";
     final expected = "<child xmlns=\"foo\"><inner xmlns=\"\">123</inner></child>";
 
-    testC14nCanonicalization(xml, xpath, expected);
+      testC14nCanonicalization(xml, xpath, expected);
   });
 
   test('The XML declaration and document type declaration (DTD) are removed', () {
@@ -309,10 +308,10 @@ void main() {
 
   test('Attribute value delimiters are set to quotation marks (double quotes)', () {
     final xml = "<root><child xmlns='ns'><inner attr='value'>123 </inner></child></root>";
-    final xpath = "//*[local-name()='child']";
+      final xpath = "//*[local-name()='child']";
     final expected = "<child xmlns=\"ns\"><inner attr=\"value\">123 </inner></child>";
 
-    testC14nCanonicalization(xml, xpath, expected);
+      testC14nCanonicalization(xml, xpath, expected);
   });
 
   test('CDATA sections are replaced with their character content', () {
@@ -409,10 +408,10 @@ void main() {
         - An element's attribute nodes are sorted lexicographically with namespace URI as the primary key and local name as the secondary key (an empty namespace URI is lexicographically least).
           Lexicographic comparison, which orders strings from least to greatest alphabetically, is based on the UCS codepoint values, which is equivalent to lexicographic ordering based on UTF-8.""", () {
     final xml = '<root xmlns:b="moo" b:attr1="a1" a:attr1="a1" b:attr4="b4" xmlns="foo" b:attr3="a3" xmlns:a="zoo"></root>';
-    final xpath = "//*[local-name()='root']";
+      final xpath = "//*[local-name()='root']";
     final expected = '<root xmlns="foo" xmlns:a="zoo" xmlns:b="moo" b:attr1="a1" b:attr3="a3" b:attr4="b4" a:attr1="a1"></root>';
 
-    testC14nCanonicalization(xml, xpath, expected);
+      testC14nCanonicalization(xml, xpath, expected);
   });
 
   test('saml attributed order (bug #25)', () {

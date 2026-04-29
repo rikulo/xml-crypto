@@ -2,11 +2,17 @@
 //History: Wed Feb 09 10:44:40 CST 2022
 // Author: rudyhuang
 
+// ignore_for_file: experimental_member_use
+
 import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:xml/xml.dart';
-import 'package:xpath_selector_xml_parser/xpath_selector_xml_parser.dart';
+import 'package:xml/xpath.dart';
+
+const xmlDsigNamespace = 'http://www.w3.org/2000/09/xmldsig#';
+const wsSecurityUtilityNamespace =
+    'http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd';
 
 XmlAttribute? findAttr(XmlNode node, String localName, [String? namespace]) {
   for (final attr in node.attributes) {
@@ -19,13 +25,29 @@ XmlAttribute? findAttr(XmlNode node, String localName, [String? namespace]) {
   return null;
 }
 
-XmlNode findFirst(XmlElement doc, String xpath) {
-  final nodes = doc.queryXPath(xpath), node = nodes.node;
+List<XmlNode> findNodes(XmlNode node, String xpath) =>
+    node.xpath(xpath).toList(growable: false);
+
+XmlNode? findFirstOrNull(XmlNode node, String xpath) {
+  final nodes = node.xpath(xpath);
+  return nodes.isEmpty ? null : nodes.first;
+}
+
+String? findFirstAttrValue(XmlNode node, String xpath) {
+  final attr = findFirstOrNull(node, xpath);
+  return attr is XmlAttribute ? attr.value : null;
+}
+
+List<XmlAttribute> findAttrs(XmlNode node, String xpath) =>
+    node.xpath(xpath).whereType<XmlAttribute>().toList(growable: false);
+
+XmlNode findFirst(XmlNode doc, String xpath) {
+  final node = findFirstOrNull(doc, xpath);
 
   if (node == null) {
     throw ArgumentError("could not find xpath $xpath");
   }
-  return node.node;
+  return node;
 }
 
 List<XmlElement> findChilds(XmlNode node, String localName,
@@ -65,14 +87,14 @@ const _xmlSpecialToEncodedAttribute = {
   '"': '&quot;',
   '\r': '&#xD;',
   '\n': '&#xA;',
-  '\t': '&#x9;'
+  '\t': '&#x9;',
 };
 
 const _xmlSpecialToEncodedText = {
   '&': '&amp;',
   '<': '&lt;',
   '>': '&gt;',
-  '\r': '&#xD;'
+  '\r': '&#xD;',
 };
 
 String encodeSpecialCharactersInAttribute(String attributeValue) =>

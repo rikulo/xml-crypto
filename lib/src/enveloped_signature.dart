@@ -3,7 +3,6 @@
 // Author: rudyhuang
 
 import 'package:xml/xml.dart';
-import 'package:xpath_selector_xml_parser/xpath_selector_xml_parser.dart';
 
 import 'signed_xml.dart';
 import 'utils.dart';
@@ -17,31 +16,31 @@ class EnvelopedSignature implements CanonicalizationAlgorithm<XmlNode> {
   XmlNode process(XmlNode node, [Map<String, dynamic> options = const {}]) {
     final signatureNode = options['signatureNode'];
     if (signatureNode == null) {
-      // leave this for the moment...
-      final signature = XmlXPath.node(node).query(
-          './*[local-name()="Signature""]'); // FIXME: namespace-uri() not supported
-      // .query('./*[local-name()="Signature" and namespace-uri()="http://www.w3.org/2000/09/xmldsig#"]');
-      final signatureNode = signature.node;
-      if (signatureNode != null) {
-        final child = signatureNode.node;
-        child.parent?.children.remove(child);
+      final signatures = findChilds(node, 'Signature', xmlDsigNamespace);
+      if (signatures.isNotEmpty) {
+        final signature = signatures.first;
+        signature.parent?.children.remove(signature);
       }
       return node;
     }
 
     assert(signatureNode is XmlElement);
-    final expectedSignatureValue = findFirst(signatureNode as XmlElement,
-            ".//*[local-name()='SignatureValue']/text()")
-        .innerText;
-    final signatures = XmlXPath.node(node).query(
-        './/*[local-name()="Signature"]'); // FIXME: namespace-uri() not supported
-    // .query('.//*[local-name()="Signature" and namespace-uri()="http://www.w3.org/2000/09/xmldsig#"]');
-    for (final sig in signatures.nodes) {
-      final child = sig.node;
-      assert(child is XmlElement);
-      final signatureValue = findFirst(
-              child as XmlElement, ".//*[local-name()='SignatureValue']/text()")
-          .innerText;
+    final expectedSignatureValue = findChilds(
+      signatureNode as XmlElement,
+      'SignatureValue',
+      xmlDsigNamespace,
+    ).first.innerText;
+    final signatures = node.descendants.whereType<XmlElement>().where(
+      (element) =>
+          element.name.local == 'Signature' &&
+          element.name.namespaceUri == xmlDsigNamespace,
+    );
+    for (final child in signatures) {
+      final signatureValue = findChilds(
+        child,
+        'SignatureValue',
+        xmlDsigNamespace,
+      ).first.innerText;
       if (expectedSignatureValue == signatureValue) {
         child.parent?.children.remove(child);
       }

@@ -1,3 +1,8 @@
+## 5.0.0
+
+* Upgrade dependencies (Now Dart >= 3.11 is needed)
+* Use `xml/xpath.dart` instead of `xpath_selector`
+
 ## 4.0.0
 
 * Upgrade dependencies (Now Dart >= 3.8 is needed)

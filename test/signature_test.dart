@@ -12,7 +12,6 @@ import 'package:test/test.dart';
 import 'package:xml/xml.dart';
 import 'package:xml_crypto/src/signed_xml.dart';
 import 'package:xml_crypto/src/utils.dart';
-import 'package:xpath_selector_xml_parser/xpath_selector_xml_parser.dart';
 
 void verifyComputeSignature(String xml, String expectedFile, List<String> referencesXPath) {
   final sig = SignedXml();
@@ -35,9 +34,9 @@ void main() {
       // Since XmlDocument will keep non self-closing tags as is, we changed the test xml to use self-closing tags.
       final xml = "<root><x xmlns=\"ns\"/><y z_attr=\"value\" a_attr1=\"foo\"/><z><ns:w ns:attr=\"value\" xmlns:ns=\"myns\"/></z></root>";
       verifyComputeSignature(xml, './test/static/integration/expectedVerify.xml', [
-        "//*[local-name()='x']",
-        "//*[local-name()='y']",
-        "//*[local-name()='w']",
+          "//*[local-name()='x']",
+          "//*[local-name()='y']",
+          "//*[local-name()='w']",
       ]);
     });
 
@@ -63,19 +62,19 @@ void main() {
           "</book>"
           "</library>";
       final signature = parseFromString(
-          '<Signature xmlns="http://www.w3.org/2000/09/xmldsig#">'
-              '<SignedInfo>'
-              '<CanonicalizationMethod Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"/>'
-              '<SignatureMethod Algorithm="http://www.w3.org/2000/09/xmldsig#rsa-sha1"/>'
-              '<Reference URI="">'
-              '<Transforms>'
-              '<Transform Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"/>'
-              '</Transforms>'
-              '<DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1"/>'
-              '<DigestValue>1tjZsV007JgvE1YFe1C8sMQ+iEg=</DigestValue>'
-              '</Reference>'
-              '</SignedInfo>'
-              '<SignatureValue>FONRc5/nnQE2GMuEV0wK5/ofUJMHH7dzZ6VVd+oHDLfjfWax/lCMzUahJxW1i/dtm9Pl0t2FbJONVd3wwDSZzy6u5uCnj++iWYkRpIEN19RAzEMD1ejfZET8j3db9NeBq2JjrPbw81Fm7qKvte6jGa9ThTTB+1MHFRkC8qjukRM=</SignatureValue>'
+        '<Signature xmlns="http://www.w3.org/2000/09/xmldsig#">'
+        '<SignedInfo>'
+        '<CanonicalizationMethod Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"/>'
+        '<SignatureMethod Algorithm="http://www.w3.org/2000/09/xmldsig#rsa-sha1"/>'
+        '<Reference URI="">'
+        '<Transforms>'
+        '<Transform Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"/>'
+        '</Transforms>'
+        '<DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1"/>'
+        '<DigestValue>1tjZsV007JgvE1YFe1C8sMQ+iEg=</DigestValue>'
+        '</Reference>'
+        '</SignedInfo>'
+        '<SignatureValue>FONRc5/nnQE2GMuEV0wK5/ofUJMHH7dzZ6VVd+oHDLfjfWax/lCMzUahJxW1i/dtm9Pl0t2FbJONVd3wwDSZzy6u5uCnj++iWYkRpIEN19RAzEMD1ejfZET8j3db9NeBq2JjrPbw81Fm7qKvte6jGa9ThTTB+1MHFRkC8qjukRM=</SignatureValue>'
               '</Signature>');
       final sig = SignedXml();
       sig.keyInfoProvider = FileKeyInfo('./test/static/client_public.pem');
@@ -85,29 +84,31 @@ void main() {
 
     test('add canonicalization if output of transforms will be a node-set rather than an octet stream', () {
       var xml = File('./test/static/windows_store_signature.xml').readAsStringSync();
-      // Make sure that whitespace in the source document is removed -- see xml-crypto issue #23 and post at
-      //   http://webservices20.blogspot.co.il/2013/06/validating-windows-mobile-app-store.html
-      // This regex is naive but works for this test case; for a more general solution consider
-      //   the xmldom-fork-fixed library which can pass {ignoreWhiteSpace: true} into the Dom constructor.
-      xml = xml.replaceAll(RegExp(r'>\s*<'), '><');
+        // Make sure that whitespace in the source document is removed -- see xml-crypto issue #23 and post at
+        //   http://webservices20.blogspot.co.il/2013/06/validating-windows-mobile-app-store.html
+        // This regex is naive but works for this test case; for a more general solution consider
+        //   the xmldom-fork-fixed library which can pass {ignoreWhiteSpace: true} into the Dom constructor.
+        xml = xml.replaceAll(RegExp(r'>\s*<'), '><');
 
-      final doc = parseFromString(xml);
-      final signature = XmlXPath.node(doc)
-          .query("//*//*[local-name()='Signature']") // FIXME should use namespace-uri()
-          .node?.node;
+        final doc = parseFromString(xml);
+        final signature = findFirstOrNull(
+          doc,
+          "//*[local-name()='Signature' and namespace-uri()='http://www.w3.org/2000/09/xmldsig#']",
+        );
 
-      final sig = SignedXml();
+        final sig = SignedXml();
       sig.keyInfoProvider = FileKeyInfo('./test/static/windows_store_certificate.pem');
-      sig.loadSignature(signature);
-      expect(sig.checkSignature(xml), isTrue);
+        sig.loadSignature(signature);
+        expect(sig.checkSignature(xml), isTrue);
     });
 
     test('signature with inclusive namespaces', () {
       final xml = File('./test/static/signature_with_inclusivenamespaces.xml').readAsStringSync();
       final doc = parseFromString(xml);
-      final signature = XmlXPath.node(doc)
-          .query("//*//*[local-name()='Signature']") // FIXME should use namespace-uri()
-          .node?.node;
+      final signature = findFirstOrNull(
+        doc,
+        "//*[local-name()='Signature' and namespace-uri()='http://www.w3.org/2000/09/xmldsig#']",
+      );
 
       final sig = SignedXml();
       sig.keyInfoProvider = FileKeyInfo('./test/static/signature_with_inclusivenamespaces.pem');
@@ -118,9 +119,10 @@ void main() {
     test('signature with inclusive namespaces with unix line separators', () {
       final xml = File('./test/static/signature_with_inclusivenamespaces_lines.xml').readAsStringSync();
       final doc = parseFromString(xml);
-      final signature = XmlXPath.node(doc)
-          .query("//*//*[local-name()='Signature']") // FIXME should use namespace-uri()
-          .node?.node;
+      final signature = findFirstOrNull(
+        doc,
+        "//*[local-name()='Signature' and namespace-uri()='http://www.w3.org/2000/09/xmldsig#']",
+      );
 
       final sig = SignedXml();
       sig.keyInfoProvider = FileKeyInfo('./test/static/signature_with_inclusivenamespaces.pem');
@@ -131,9 +133,10 @@ void main() {
     test('signature with inclusive namespaces with windows line separators', () {
       final xml = File('./test/static/signature_with_inclusivenamespaces_lines_windows.xml').readAsStringSync();
       final doc = parseFromString(xml);
-      final signature = XmlXPath.node(doc)
-          .query("//*//*[local-name()='Signature']") // FIXME should use namespace-uri()
-          .node?.node;
+      final signature = findFirstOrNull(
+        doc,
+        "//*[local-name()='Signature' and namespace-uri()='http://www.w3.org/2000/09/xmldsig#']",
+      );
 
       final sig = SignedXml();
       sig.keyInfoProvider = FileKeyInfo('./test/static/signature_with_inclusivenamespaces.pem');
@@ -164,7 +167,7 @@ void main() {
 
   group('unit tests', () {
     test('signer adds increasing id attributes to elements', () {
-      // verifyAddsId('wssecurity', 'equal'); FIXME: xpath namespace support is broken
+      verifyAddsId('wssecurity', 'equal');
       verifyAddsId('', 'different');
     });
 
@@ -209,9 +212,12 @@ void main() {
       });
 
       final doc = parseFromString(sig.signedXml);
-      final referenceNode = XmlXPath.node(doc).query('/root/name').node!.node;
-      expect(referenceNode.lastElementChild!.name.local, 'Signature',
-          reason: 'the signature should be appended to root/name');
+      final referenceNode = findFirst(doc, '/root/name');
+      expect(
+        referenceNode.lastElementChild!.name.local,
+        'Signature',
+        reason: 'the signature should be appended to root/name',
+      );
     });
 
     test('signer prepends signature to a reference node', () {
@@ -228,9 +234,12 @@ void main() {
       });
 
       final doc = parseFromString(sig.signedXml);
-      final referenceNode = XmlXPath.node(doc).query('/root/name').node!.node;
-      expect(referenceNode.firstElementChild!.name.local, 'Signature',
-          reason: 'the signature should be prepended to root/name');
+      final referenceNode = findFirst(doc, '/root/name');
+      expect(
+        referenceNode.firstElementChild!.name.local,
+        'Signature',
+        reason: 'the signature should be prepended to root/name',
+      );
     });
 
     test('signer inserts signature before a reference node', () {
@@ -247,9 +256,12 @@ void main() {
       });
 
       final doc = parseFromString(sig.signedXml);
-      final referenceNode = XmlXPath.node(doc).query('/root/name').node!.node;
-      expect(referenceNode.previousElementSibling!.name.local, 'Signature',
-          reason: 'the signature should be prepended to root/name');
+      final referenceNode = findFirst(doc, '/root/name');
+      expect(
+        referenceNode.previousElementSibling!.name.local,
+        'Signature',
+        reason: 'the signature should be prepended to root/name',
+      );
     });
 
     test('signer inserts signature after a reference node', () {
@@ -266,9 +278,12 @@ void main() {
       });
 
       final doc = parseFromString(sig.signedXml);
-      final referenceNode = XmlXPath.node(doc).query('/root/name').node!.node;
-      expect(referenceNode.nextElementSibling!.name.local, 'Signature',
-          reason: 'the signature should be prepended to root/name');
+      final referenceNode = findFirst(doc, '/root/name');
+      expect(
+        referenceNode.nextElementSibling!.name.local,
+        'Signature',
+        reason: 'the signature should be prepended to root/name',
+      );
     });
 
     test('signer creates signature with correct structure', () {
@@ -506,37 +521,37 @@ void main() {
         ..addReference("//*[local-name()='y']")
         ..addReference("//*[local-name()='w']")
         ..computeSignature(xml, callback: (err, _) {
-          final signedXml = sig.signedXml;
+            final signedXml = sig.signedXml;
           final expected = "<root><x xmlns=\"ns\" Id=\"_0\"/><y attr=\"value\" Id=\"_1\"/><z><w Id=\"_2\"/></z>"
-              "<Signature xmlns=\"http://www.w3.org/2000/09/xmldsig#\">"
-              "<SignedInfo>"
-              "<CanonicalizationMethod Algorithm=\"http://www.w3.org/2001/10/xml-exc-c14n#\"/>"
-              "<SignatureMethod Algorithm=\"http://www.w3.org/2000/09/xmldsig#rsa-sha1\"/>"
-              "<Reference URI=\"#_0\">"
-              "<Transforms>"
-              "<Transform Algorithm=\"http://www.w3.org/2001/10/xml-exc-c14n#\"/></Transforms>"
-              "<DigestMethod Algorithm=\"http://www.w3.org/2000/09/xmldsig#sha1\"/>"
-              "<DigestValue>b5GCZ2xpP5T7tbLWBTkOl4CYupQ=</DigestValue>"
-              "</Reference>"
-              "<Reference URI=\"#_1\">"
-              "<Transforms>"
-              "<Transform Algorithm=\"http://www.w3.org/2001/10/xml-exc-c14n#\"/>"
-              "</Transforms>"
-              "<DigestMethod Algorithm=\"http://www.w3.org/2000/09/xmldsig#sha1\"/>"
-              "<DigestValue>4Pq/sBri+AyOtxtSFsPSOyylyzk=</DigestValue>"
-              "</Reference>"
-              "<Reference URI=\"#_2\">"
-              "<Transforms>"
-              "<Transform Algorithm=\"http://www.w3.org/2001/10/xml-exc-c14n#\"/>"
-              "</Transforms>"
-              "<DigestMethod Algorithm=\"http://www.w3.org/2000/09/xmldsig#sha1\"/>"
-              "<DigestValue>6I7SDu1iV2YOajTlf+iMLIBfLnE=</DigestValue>"
-              "</Reference>"
-              "</SignedInfo>"
-              "<SignatureValue>NejzGB9MDUddKCt3GL2vJhEd5q6NBuhLdQc3W4bJI5q34hk7Hk6zBRoW3OliX+/f7Hpi9y0INYoqMSUfrsAVm3IuPzUETKlI6xiNZo07ULRj1DwxRo6cU66ar1EKUQLRuCZas795FjB8jvUI2lyhcax/00uMJ+Cjf4bwAQ+9gOQ=</SignatureValue>"
-              "</Signature>"
-              "</root>";
-          expect(expected, signedXml, reason: 'wrong signature format');
+                "<Signature xmlns=\"http://www.w3.org/2000/09/xmldsig#\">"
+                "<SignedInfo>"
+                "<CanonicalizationMethod Algorithm=\"http://www.w3.org/2001/10/xml-exc-c14n#\"/>"
+                "<SignatureMethod Algorithm=\"http://www.w3.org/2000/09/xmldsig#rsa-sha1\"/>"
+                "<Reference URI=\"#_0\">"
+                "<Transforms>"
+                "<Transform Algorithm=\"http://www.w3.org/2001/10/xml-exc-c14n#\"/></Transforms>"
+                "<DigestMethod Algorithm=\"http://www.w3.org/2000/09/xmldsig#sha1\"/>"
+                "<DigestValue>b5GCZ2xpP5T7tbLWBTkOl4CYupQ=</DigestValue>"
+                "</Reference>"
+                "<Reference URI=\"#_1\">"
+                "<Transforms>"
+                "<Transform Algorithm=\"http://www.w3.org/2001/10/xml-exc-c14n#\"/>"
+                "</Transforms>"
+                "<DigestMethod Algorithm=\"http://www.w3.org/2000/09/xmldsig#sha1\"/>"
+                "<DigestValue>4Pq/sBri+AyOtxtSFsPSOyylyzk=</DigestValue>"
+                "</Reference>"
+                "<Reference URI=\"#_2\">"
+                "<Transforms>"
+                "<Transform Algorithm=\"http://www.w3.org/2001/10/xml-exc-c14n#\"/>"
+                "</Transforms>"
+                "<DigestMethod Algorithm=\"http://www.w3.org/2000/09/xmldsig#sha1\"/>"
+                "<DigestValue>6I7SDu1iV2YOajTlf+iMLIBfLnE=</DigestValue>"
+                "</Reference>"
+                "</SignedInfo>"
+                "<SignatureValue>NejzGB9MDUddKCt3GL2vJhEd5q6NBuhLdQc3W4bJI5q34hk7Hk6zBRoW3OliX+/f7Hpi9y0INYoqMSUfrsAVm3IuPzUETKlI6xiNZo07ULRj1DwxRo6cU66ar1EKUQLRuCZas795FjB8jvUI2lyhcax/00uMJ+Cjf4bwAQ+9gOQ=</SignatureValue>"
+                "</Signature>"
+                "</root>";
+            expect(expected, signedXml, reason: 'wrong signature format');
         });
     });
 
@@ -549,11 +564,11 @@ void main() {
     test('verify valid signature', () {
       passValidSignature('./test/static/valid_signature.xml');
       passValidSignature('./test/static/valid_signature_with_lowercase_id_attribute.xml');
-      // passValidSignature('./test/static/valid_signature wsu.xml', 'wssecurity'); // FIXME: wsu namespace
+      passValidSignature('./test/static/valid_signature wsu.xml', 'wssecurity');
       passValidSignature('./test/static/valid_signature_with_reference_keyInfo.xml');
       passValidSignature('./test/static/valid_signature_with_whitespace_in_digestvalue.xml');
       passValidSignature('./test/static/valid_signature_utf8.xml');
-      // passValidSignature('./test/static/valid_signature_with_unused_prefixes.xml'); // FIXME: wsu namespace
+      passValidSignature('./test/static/valid_signature_with_unused_prefixes.xml');
     });
 
     test('fail invalid signature', () {
@@ -561,10 +576,10 @@ void main() {
       failInvalidSignature('./test/static/invalid_signature - hash.xml');
       failInvalidSignature('./test/static/invalid_signature - non existing reference.xml');
       failInvalidSignature('./test/static/invalid_signature - changed content.xml');
-      // failInvalidSignature('./test/static/invalid_signature - wsu - invalid signature value.xml', 'wssecurity'); // FIXME: wsu namespace
-      // failInvalidSignature('./test/static/invalid_signature - wsu - hash.xml', 'wssecurity'); // FIXME: wsu namespace
-      // failInvalidSignature('./test/static/invalid_signature - wsu - non existing reference.xml', 'wssecurity'); // FIXME: wsu namespace
-      // failInvalidSignature('./test/static/invalid_signature - wsu - changed content.xml', 'wssecurity'); // FIXME: wsu namespace
+      failInvalidSignature('./test/static/invalid_signature - wsu - invalid signature value.xml', 'wssecurity');
+      failInvalidSignature('./test/static/invalid_signature - wsu - hash.xml', 'wssecurity');
+      failInvalidSignature('./test/static/invalid_signature - wsu - non existing reference.xml', 'wssecurity');
+      failInvalidSignature('./test/static/invalid_signature - wsu - changed content.xml', 'wssecurity');
     });
 
     test('allow empty reference uri when signing', () {
@@ -576,7 +591,7 @@ void main() {
         ..computeSignature(xml);
       final signedXml = sig.signedXml;
       final doc = parseFromString(signedXml);
-      final uri = XmlXPath.node(doc).query("//*[local-name()='Reference']/@URI").attr;
+      final uri = findFirstAttrValue(doc, "//*[local-name()='Reference']/@URI");
       expect(uri, isEmpty, reason: 'uri should be empty but instead was $uri');
     });
 
@@ -596,25 +611,25 @@ void main() {
 
     test('signer adds existing prefixes', () {
       final xml = '<SOAP-ENV:Envelope xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/"> '
-        '<SOAP-ENV:Header> '
-        '<wsse:Security '
-        'xmlns:wsse="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd" '
-        'xmlns:wsu="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd"> '
-        '<Assertion></Assertion> '
-        '</wsse:Security> '
-        '</SOAP-ENV:Header> '
-        '</SOAP-ENV:Envelope>';
+          '<SOAP-ENV:Header> '
+          '<wsse:Security '
+          'xmlns:wsse="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd" '
+          'xmlns:wsu="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd"> '
+          '<Assertion></Assertion> '
+          '</wsse:Security> '
+          '</SOAP-ENV:Header> '
+          '</SOAP-ENV:Envelope>';
       final sig = SignedXml()
         ..keyInfoProvider = AssertionKeyInfo('_81d5fba5c807be9e9cf60c58566349b1')
         ..signingKey = File('./test/static/client.pem').readAsBytesSync();
 
       sig.computeSignature(xml, opts: {
-        'prefix': 'ds',
+          'prefix': 'ds',
         'location': {
           'reference': '//Assertion',
           'action': 'after'
         },
-        'existingPrefixes': {
+          'existingPrefixes': {
           'wsse': 'http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd',
           'wsu': 'http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd',
         }
@@ -625,106 +640,169 @@ void main() {
     });
 
     test('creates InclusiveNamespaces element when inclusiveNamespacesPrefixList is set on Reference',
-        () {
-      final xml = '<root><x /></root>';
-      final sig = SignedXml();
-      sig
-        ..signingKey = File('./test/static/client.pem').readAsBytesSync()
-        ..keyInfoProvider = null
-        ..addReference(
+      () {
+        final xml = '<root><x /></root>';
+        final sig = SignedXml();
+        sig
+          ..signingKey = File('./test/static/client.pem').readAsBytesSync()
+          ..keyInfoProvider = null
+          ..addReference(
             "//*[local-name()='root']",
             ["http://www.w3.org/2000/09/xmldsig#enveloped-signature"],
             "http://www.w3.org/2000/09/xmldsig#sha1",
             "",
             "",
             "prefix1 prefix2")
-        ..computeSignature(xml);
-      final signedXml = sig.signedXml;
-      final doc = parseFromString(signedXml);
-      final inclusiveNamespaces = XmlXPath.node(doc).query("//*[local-name()='Reference']/*[local-name()='Transforms']/*[local-name()='Transform']/*[local-name()='InclusiveNamespaces']").nodes;
-      expect(inclusiveNamespaces, hasLength(1), reason: 'InclusiveNamespaces element should exist');
+          ..computeSignature(xml);
+        final signedXml = sig.signedXml;
+        final doc = parseFromString(signedXml);
+        final inclusiveNamespaces = findNodes(
+          doc,
+          "//*[local-name()='Reference']/*[local-name()='Transforms']/*[local-name()='Transform']/*[local-name()='InclusiveNamespaces']",
+        );
+        expect(
+          inclusiveNamespaces,
+          hasLength(1),
+          reason: 'InclusiveNamespaces element should exist',
+        );
 
-      final prefixListAttribute = inclusiveNamespaces.first.attributes['PrefixList'];
-      expect(prefixListAttribute, 'prefix1 prefix2', reason: 'InclusiveNamespaces element should have the correct PrefixList attribute value');
-    });
+        final prefixListAttribute = (inclusiveNamespaces.first as XmlElement)
+            .getAttribute('PrefixList');
+        expect(
+          prefixListAttribute,
+          'prefix1 prefix2',
+          reason:
+              'InclusiveNamespaces element should have the correct PrefixList attribute value',
+        );
+      },
+    );
 
     test('does not create InclusiveNamespaces element when inclusiveNamespacesPrefixList is not set on Reference',
-        () {
-      final xml = '<root><x /></root>';
-      final sig = SignedXml();
-      sig
-        ..signingKey = File('./test/static/client.pem').readAsBytesSync()
-        ..keyInfoProvider = null
-        ..addReference(
+      () {
+        final xml = '<root><x /></root>';
+        final sig = SignedXml();
+        sig
+          ..signingKey = File('./test/static/client.pem').readAsBytesSync()
+          ..keyInfoProvider = null
+          ..addReference(
             "//*[local-name()='root']",
             ["http://www.w3.org/2000/09/xmldsig#enveloped-signature"],
             "http://www.w3.org/2000/09/xmldsig#sha1",
             "",
             "",
             "")
-        ..computeSignature(xml);
-      final signedXml = sig.signedXml;
-      final doc = parseFromString(signedXml);
-      final inclusiveNamespaces = XmlXPath.node(doc).query("//*[local-name()='Reference']/*[local-name()='Transforms']/*[local-name()='Transform']/*[local-name()='InclusiveNamespaces']").nodes;
-      expect(inclusiveNamespaces, isEmpty, reason: 'InclusiveNamespaces element should not exist');
-    });
+          ..computeSignature(xml);
+        final signedXml = sig.signedXml;
+        final doc = parseFromString(signedXml);
+        final inclusiveNamespaces = findNodes(
+          doc,
+          "//*[local-name()='Reference']/*[local-name()='Transforms']/*[local-name()='Transform']/*[local-name()='InclusiveNamespaces']",
+        );
+        expect(
+          inclusiveNamespaces,
+          isEmpty,
+          reason: 'InclusiveNamespaces element should not exist',
+        );
+      },
+    );
 
     test('creates InclusiveNamespaces element inside CanonicalizationMethod when inclusiveNamespacesPrefixList is set on SignedXml options',
-        () {
-      final xml = '<root><x /></root>';
-      final sig = SignedXml('', {
-        'inclusiveNamespacesPrefixList': "prefix1 prefix2"
-      }); // Omit inclusiveNamespacesPrefixList property
-      sig
-        ..signingKey = File('./test/static/client.pem').readAsBytesSync()
-        ..keyInfoProvider = null
+      () {
+        final xml = '<root><x /></root>';
+        final sig = SignedXml('', {
+          'inclusiveNamespacesPrefixList': "prefix1 prefix2",
+        }); // Omit inclusiveNamespacesPrefixList property
+        sig
+          ..signingKey = File('./test/static/client.pem').readAsBytesSync()
+          ..keyInfoProvider = null
         ..addReference(
             "//*[local-name()='root']",
             ["http://www.w3.org/2000/09/xmldsig#enveloped-signature"],
             "http://www.w3.org/2000/09/xmldsig#sha1")
-        ..computeSignature(xml);
-      final signedXml = sig.signedXml;
-      final doc = parseFromString(signedXml);
-      final inclusiveNamespaces = XmlXPath.node(doc).query("//*[local-name()='CanonicalizationMethod']/*[local-name()='InclusiveNamespaces']").nodes;
-      expect(inclusiveNamespaces, hasLength(1), reason: 'InclusiveNamespaces element should exist inside CanonicalizationMethod');
+          ..computeSignature(xml);
+        final signedXml = sig.signedXml;
+        final doc = parseFromString(signedXml);
+        final inclusiveNamespaces = findNodes(
+          doc,
+          "//*[local-name()='CanonicalizationMethod']/*[local-name()='InclusiveNamespaces']",
+        );
+        expect(
+          inclusiveNamespaces,
+          hasLength(1),
+          reason:
+              'InclusiveNamespaces element should exist inside CanonicalizationMethod',
+        );
 
-      final prefixListAttribute = inclusiveNamespaces.first.attributes['PrefixList'];
-      expect(prefixListAttribute, 'prefix1 prefix2', reason: 'InclusiveNamespaces element inside CanonicalizationMethod should have the correct PrefixList attribute value');
-    });
+        final prefixListAttribute = (inclusiveNamespaces.first as XmlElement)
+            .getAttribute('PrefixList');
+        expect(
+          prefixListAttribute,
+          'prefix1 prefix2',
+          reason:
+              'InclusiveNamespaces element inside CanonicalizationMethod should have the correct PrefixList attribute value',
+        );
+      },
+    );
 
     test('does not create InclusiveNamespaces element inside CanonicalizationMethod when inclusiveNamespacesPrefixList is not set on SignedXml options',
-        () {
-      final xml = '<root><x /></root>';
-      final sig = SignedXml(); // Omit inclusiveNamespacesPrefixList property
-      sig
-        ..signingKey = File('./test/static/client.pem').readAsBytesSync()
-        ..keyInfoProvider = null
+      () {
+        final xml = '<root><x /></root>';
+        final sig = SignedXml(); // Omit inclusiveNamespacesPrefixList property
+        sig
+          ..signingKey = File('./test/static/client.pem').readAsBytesSync()
+          ..keyInfoProvider = null
         ..addReference(
             "//*[local-name()='root']",
             ["http://www.w3.org/2000/09/xmldsig#enveloped-signature"],
             "http://www.w3.org/2000/09/xmldsig#sha1")
-        ..computeSignature(xml);
-      final signedXml = sig.signedXml;
-      final doc = parseFromString(signedXml);
-      final inclusiveNamespaces = XmlXPath.node(doc).query("//*[local-name()='CanonicalizationMethod']/*[local-name()='InclusiveNamespaces']").nodes;
-      expect(inclusiveNamespaces, isEmpty, reason: 'InclusiveNamespaces element should not exist inside CanonicalizationMethod');
-    });
+          ..computeSignature(xml);
+        final signedXml = sig.signedXml;
+        final doc = parseFromString(signedXml);
+        final inclusiveNamespaces = findNodes(
+          doc,
+          "//*[local-name()='CanonicalizationMethod']/*[local-name()='InclusiveNamespaces']",
+        );
+        expect(
+          inclusiveNamespaces,
+          isEmpty,
+          reason:
+              'InclusiveNamespaces element should not exist inside CanonicalizationMethod',
+        );
+      },
+    );
 
     test('adds attributes to KeyInfo element when attrs are present in keyInfoProvider', () {
-      final xml = '<root><x /></root>';
-      final sig = SignedXml()
-        ..keyInfoProvider = CustomKeyInfoProvider()
-        ..computeSignature(xml);
-      final signedXml = sig.signedXml;
-      final doc = parseFromString(signedXml);
-      final keyInfoElement = XmlXPath.node(doc).query("//*[local-name()='KeyInfo']").nodes;
-      expect(keyInfoElement, hasLength(1), reason: 'KeyInfo element should exist');
+        final xml = '<root><x /></root>';
+        final sig = SignedXml()
+          ..keyInfoProvider = CustomKeyInfoProvider()
+          ..computeSignature(xml);
+        final signedXml = sig.signedXml;
+        final doc = parseFromString(signedXml);
+        final keyInfoElement = findNodes(doc, "//*[local-name()='KeyInfo']");
+        expect(
+          keyInfoElement,
+          hasLength(1),
+          reason: 'KeyInfo element should exist',
+        );
 
-      final algorithmAttribute = keyInfoElement.first.attributes['CustomUri'];
-      expect(algorithmAttribute, 'http://www.example.com/keyinfo', reason: 'KeyInfo element should have the correct CustomUri attribute value');
-      final customAttribute = keyInfoElement.first.attributes['CustomAttribute'];
-      expect(customAttribute, 'custom-value', reason: 'KeyInfo element should have the correct CustomAttribute attribute value');
-    });
+        final algorithmAttribute = (keyInfoElement.first as XmlElement)
+            .getAttribute('CustomUri');
+        expect(
+          algorithmAttribute,
+          'http://www.example.com/keyinfo',
+          reason:
+              'KeyInfo element should have the correct CustomUri attribute value',
+        );
+        final customAttribute = (keyInfoElement.first as XmlElement)
+            .getAttribute('CustomAttribute');
+        expect(
+          customAttribute,
+          'custom-value',
+          reason:
+              'KeyInfo element should have the correct CustomAttribute attribute value',
+        );
+      },
+    );
   });
 }
 
@@ -741,9 +819,8 @@ void verifyAddsId(String mode, String nsMode) {
   final signedXml = sig.originalXmlWithIds;
   final doc = parseFromString(signedXml);
 
-  final xpath = "//*[local-name()='{elem}' and @Id='_{id}']";
-  // final op = nsMode == 'equal' ? '=' : '!='; FIXME: no namespace-uri() support
-  // final xpath = "//*[local-name()='{elem}' and '_{id}' = @*[local-name()='Id' and namespace-uri()$op'http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd']]";
+  final op = nsMode == 'equal' ? '=' : '!=';
+  final xpath = "//*[local-name()='{elem}' and '_{id}' = @*[local-name()='Id' and namespace-uri()$op'$wsSecurityUtilityNamespace']]";
 
   //verify each of the signed nodes now has an "Id" attribute with the right value
   nodeExists(doc, xpath.replaceFirst('{id}', '0').replaceFirst('{elem}', 'x'));
@@ -752,7 +829,7 @@ void verifyAddsId(String mode, String nsMode) {
 }
 
 void nodeExists(XmlDocument doc, String xpath) {
-  final node = XmlXPath.node(doc).query(xpath).node;
+  final node = findFirstOrNull(doc, xpath);
   expect(node, isNotNull, reason: 'xpath $xpath not found');
 }
 
@@ -761,19 +838,17 @@ void verifyReferenceNS() {
   final sig = SignedXml("wssecurity");
   sig.signingKey = File('./test/static/client.pem').readAsBytesSync();
 
-  // sig.addReference('//*[@wsu:Id]'); FIXME: xpath-selector doesn't support qualified names
-  sig.addReference('//name');
-  sig.addReference('//repository');
+  sig.addReference('//*[@wsu:Id]');
 
   sig.computeSignature(xml, opts: {
-    'existingPrefixes': {
+      'existingPrefixes': {
       'wsu': 'http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd'
     }
   });
 
   final signedXml = sig.signatureXml;
   final doc = parseFromString(signedXml);
-  final references = XmlXPath.node(doc).query("//*[local-name()='Reference']").nodes;
+  final references = findNodes(doc, "//*[local-name()='Reference']");
   expect(references.length, 2);
 }
 
@@ -785,7 +860,7 @@ void verifyDoesNotDuplicateIdAttributes(String mode, String prefix) {
   sig.computeSignature(xml);
   final signedXml = sig.originalXmlWithIds;
   final doc = parseFromString(signedXml);
-  final attrs = XmlXPath.node(doc).query("//@*").attrs;
+  final attrs = findAttrs(doc, "//@*");
   expect(attrs.length, 2, reason: 'wrong number of attributes');
 }
 
@@ -911,7 +986,10 @@ class DummySignatureAlgorithmAsync implements SignatureAlgorithm {
 void passLoadSignature(String file, [bool toString = false]) {
   final xml = File(file).readAsStringSync();
   final doc = parseFromString(xml);
-  final node = XmlXPath.node(doc).query("/*//*[local-name()='Signature']").node!.node; // FIXME namespace-uri()
+  final node = findFirst(
+    doc,
+    "/*//*[local-name()='Signature' and namespace-uri()='http://www.w3.org/2000/09/xmldsig#']",
+  );
   final sig = SignedXml();
   sig.loadSignature(toString ? node.toString() : node);
 
@@ -923,8 +1001,15 @@ void passLoadSignature(String file, [bool toString = false]) {
       reason: 'wrong signature value');
 
   final doc2 = parseFromString(sig.keyInfo!);
-  final keyInfo = XmlXPath.node(doc2).query("//*[local-name()='KeyInfo']/*[local-name()='dummyKey']").node!.node;
-  expect(keyInfo.firstChild?.value, '1234', reason: 'keyInfo clause not correctly loaded');
+  final keyInfo = findFirst(
+    doc2,
+    "//*[local-name()='KeyInfo']/*[local-name()='dummyKey']",
+  );
+  expect(
+    keyInfo.firstChild?.value,
+    '1234',
+    reason: 'keyInfo clause not correctly loaded',
+  );
   expect(sig.references.length, 3);
 
   final digests = ['b5GCZ2xpP5T7tbLWBTkOl4CYupQ=', 'K4dI497ZCxzweDIrbndUSmtoezY=', 'sH1gxKve8wlU8LlFVa2l6w3HMJ0='];
@@ -947,7 +1032,10 @@ void passValidSignature(String file, [String mode = '']) {
 
 bool verifySignature(String xml, String mode) {
   final doc = parseFromString(xml);
-  final node = XmlXPath.node(doc).query("//*[local-name()='Signature']").node!.node; // FIXME namespace-uri()
+  final node = findFirst(
+    doc,
+    "//*[local-name()='Signature' and namespace-uri()='http://www.w3.org/2000/09/xmldsig#']",
+  );
 
   final sig = SignedXml(mode);
   sig.keyInfoProvider = FileKeyInfo('./test/static/client_public.pem');

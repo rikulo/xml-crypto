@@ -5,11 +5,10 @@
 import 'package:test/test.dart';
 import 'package:xml_crypto/src/enveloped_signature.dart';
 import 'package:xml_crypto/src/utils.dart';
-import 'package:xpath_selector_xml_parser/xpath_selector_xml_parser.dart';
 
 void testC14nCanonicalization(String xml, String xpath, String expected) {
   final doc = parseFromString(xml);
-  final elem = XmlXPath.node(doc).query(xpath).node?.node;
+  final elem = findFirstOrNull(doc, xpath);
   if (elem == null) {
     throw Exception('$xpath not found in $xml');
   }
@@ -21,7 +20,8 @@ void testC14nCanonicalization(String xml, String xpath, String expected) {
 
 void main() {
   test('Enveloped-signature canonicalization respects currentnode', () {
-    final xml = '<x><ds:Signature xmlns:ds="http://www.w3.org/2000/09/xmldsig#" /><y><ds:Signature xmlns:ds="http://www.w3.org/2000/09/xmldsig#" /></y></x>';
+    final xml =
+        '<x><ds:Signature xmlns:ds="http://www.w3.org/2000/09/xmldsig#" /><y><ds:Signature xmlns:ds="http://www.w3.org/2000/09/xmldsig#" /></y></x>';
     final xpath = "//*[local-name()='y']";
     final expected = '<y/>';
 
