@@ -819,8 +819,11 @@ void verifyAddsId(String mode, String nsMode) {
   final signedXml = sig.originalXmlWithIds;
   final doc = parseFromString(signedXml);
 
-  final op = nsMode == 'equal' ? '=' : '!=';
-  final xpath = "//*[local-name()='{elem}' and '_{id}' = @*[local-name()='Id' and namespace-uri()$op'$wsSecurityUtilityNamespace']]";
+  // xml 7.0.1 mis-evaluates string `!=` in this predicate shape, so keep the
+  // old `namespace-uri()='...'` case and express the non-equal case as `not(...)`.
+  final xpath = nsMode == 'equal'
+      ? "//*[local-name()='{elem}' and '_{id}' = @*[local-name()='Id' and namespace-uri()='$wsSecurityUtilityNamespace']]"
+      : "//*[local-name()='{elem}' and '_{id}' = @*[local-name()='Id' and not(namespace-uri()='$wsSecurityUtilityNamespace')]]";
 
   //verify each of the signed nodes now has an "Id" attribute with the right value
   nodeExists(doc, xpath.replaceFirst('{id}', '0').replaceFirst('{elem}', 'x'));
