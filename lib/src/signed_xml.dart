@@ -1245,7 +1245,7 @@ class ECDSASHA256 implements SignatureAlgorithm {
       publicKey,
       Uint8List.fromList(utf8.encode(xml)),
       rawSignature,
-      algorithm: 'SHA-256/ECDSA',
+      algorithm: 'SHA-256/DET-ECDSA',
     );
     if (callback != null) callback(null, res);
     return res;
@@ -1271,8 +1271,10 @@ class HMACSHA1 implements SignatureAlgorithm {
   }
 }
 
+/// Encodes an ECDSA signature into the XMLDSIG raw `r || s` format, padding
+/// both components to the byte length of the curve order.
 String _encodeEcSignatureBase64(ECSignature signature, BigInt order) {
-  final componentLength = (order.bitLength + 7) ~/ 8;
+  final componentLength = _ecComponentLength(order);
   final rawSignature = Uint8List(componentLength * 2)
     ..setRange(0, componentLength,
         _encodeBigIntToFixedLength(signature.r, componentLength))
@@ -1281,14 +1283,19 @@ String _encodeEcSignatureBase64(ECSignature signature, BigInt order) {
   return base64Encode(rawSignature);
 }
 
+/// Decodes an XMLDSIG raw `r || s` ECDSA signature. It also tolerates
+/// non-standard inputs that omit leading zero octets from each component.
 ECSignature _decodeEcSignatureBase64(String signatureValue, BigInt order) {
   final rawSignature = base64Decode(signatureValue);
-  final expectedComponentLength = (order.bitLength + 7) ~/ 8;
+  final expectedComponentLength = _ecComponentLength(order);
+  // Some implementations omit leading zero octets from the raw r || s value.
+  // Accept those values by falling back to splitting the signature in half.
   final componentLength = rawSignature.length == expectedComponentLength * 2
       ? expectedComponentLength
       : rawSignature.length ~/ 2;
   if (rawSignature.length.isOdd || componentLength == 0) {
-    throw ArgumentError('Invalid ECDSA signature value');
+    throw ArgumentError(
+        'Invalid ECDSA signature: signature must have even length with non-zero component size');
   }
   return ECSignature(
     _decodeBigInt(rawSignature.sublist(0, componentLength)),
@@ -1296,24 +1303,28 @@ ECSignature _decodeEcSignatureBase64(String signatureValue, BigInt order) {
   );
 }
 
+/// Encodes a BigInt as a fixed-length big-endian byte array with leading zero
+/// padding when required by XMLDSIG.
 Uint8List _encodeBigIntToFixedLength(BigInt value, int length) {
-  final bytes = _encodeBigInt(value);
+  final hex = value.toRadixString(16);
+  final normalizedHex = hex.length.isOdd ? '0$hex' : hex;
+  final bytes = Uint8List.fromList([
+    for (var i = 0; i < normalizedHex.length; i += 2)
+      int.parse(normalizedHex.substring(i, i + 2), radix: 16),
+  ]);
   if (bytes.length > length) {
-    throw ArgumentError('Value is too large to fit in $length bytes');
+    throw ArgumentError(
+        'Value requires ${bytes.length} bytes but only $length bytes are allowed');
   }
 
   return Uint8List(length)..setRange(length - bytes.length, length, bytes);
 }
 
-Uint8List _encodeBigInt(BigInt value) {
-  final hex = value.toRadixString(16).padLeft(2, '0');
-  final normalizedHex = hex.length.isOdd ? '0$hex' : hex;
-  return Uint8List.fromList([
-    for (var i = 0; i < normalizedHex.length; i += 2)
-      int.parse(normalizedHex.substring(i, i + 2), radix: 16),
-  ]);
-}
+/// Returns the fixed byte length of an ECDSA signature component for the given
+/// curve order.
+int _ecComponentLength(BigInt order) => (order.bitLength + 7) ~/ 8;
 
+/// Decodes a big-endian byte array into a BigInt.
 BigInt _decodeBigInt(List<int> bytes) {
   if (bytes.isEmpty) return BigInt.zero;
 
