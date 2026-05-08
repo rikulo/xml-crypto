@@ -1230,9 +1230,10 @@ class ECDSASHA256 implements SignatureAlgorithm {
       Uint8List.fromList(utf8.encode(xml)),
       algorithmName: 'SHA-256/DET-ECDSA',
     );
-    final res = _encodeEcSignatureBase64(rawSignature, privateKey.parameters!.n);
-    if (callback != null) callback(null, res);
-    return res;
+    final encodedSignature =
+        _encodeEcSignatureBase64(rawSignature, privateKey.parameters!.n);
+    if (callback != null) callback(null, encodedSignature);
+    return encodedSignature;
   }
 
   @override
@@ -1241,14 +1242,14 @@ class ECDSASHA256 implements SignatureAlgorithm {
     final publicKey = CryptoUtils.ecPublicKeyFromPem(utf8.decode(key));
     final rawSignature =
         _decodeEcSignatureBase64(signatureValue, publicKey.parameters!.n);
-    final res = CryptoUtils.ecVerify(
+    final isValid = CryptoUtils.ecVerify(
       publicKey,
       Uint8List.fromList(utf8.encode(xml)),
       rawSignature,
       algorithm: 'SHA-256/DET-ECDSA',
     );
-    if (callback != null) callback(null, res);
-    return res;
+    if (callback != null) callback(null, isValid);
+    return isValid;
   }
 }
 
@@ -1293,9 +1294,13 @@ ECSignature _decodeEcSignatureBase64(String signatureValue, BigInt order) {
   final componentLength = rawSignature.length == expectedComponentLength * 2
       ? expectedComponentLength
       : rawSignature.length ~/ 2;
-  if (rawSignature.length.isOdd || componentLength == 0) {
+  if (rawSignature.length.isOdd) {
     throw ArgumentError(
-        'Invalid ECDSA signature: signature must have even length with non-zero component size');
+        'Invalid ECDSA signature: signature must have an even length');
+  }
+  if (componentLength == 0) {
+    throw ArgumentError(
+        'Invalid ECDSA signature: signature components must be non-empty');
   }
   return ECSignature(
     _decodeBigInt(rawSignature.sublist(0, componentLength)),
@@ -1306,6 +1311,9 @@ ECSignature _decodeEcSignatureBase64(String signatureValue, BigInt order) {
 /// Encodes a BigInt as a fixed-length big-endian byte array with leading zero
 /// padding when required by XMLDSIG.
 Uint8List _encodeBigIntToFixedLength(BigInt value, int length) {
+  if (value.isNegative) {
+    throw ArgumentError('ECDSA signature components must be non-negative');
+  }
   final hex = value.toRadixString(16);
   final normalizedHex = hex.length.isOdd ? '0$hex' : hex;
   final bytes = Uint8List.fromList([
