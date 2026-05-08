@@ -6,9 +6,11 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:basic_utils/basic_utils.dart' show CryptoUtils;
 import 'package:crypto/crypto.dart';
 import 'package:ninja/asymmetric/rsa/encoder/emsaPkcs1v15.dart';
 import 'package:ninja/ninja.dart';
+import 'package:pointycastle/ecc/api.dart';
 import 'package:rsa_pkcs/rsa_pkcs.dart' show RSAPKCSParser;
 import 'package:xml/xml.dart' hide XmlNamespace;
 
@@ -17,8 +19,8 @@ import 'enveloped_signature.dart';
 import 'exclusive_canonicalization.dart';
 import 'utils.dart';
 
-typedef CalculateSignatureCallback = void Function(
-    Error? e, String signatureValue);
+typedef CalculateSignatureCallback =
+    void Function(Error? e, String signatureValue);
 typedef ValidateSignatureCallback = void Function(Error? e, bool valid);
 typedef ComputeSignatureCallback = void Function(Error? e, SignedXml? instance);
 
@@ -79,8 +81,10 @@ String _findNSPrefix(XmlNode subset) {
   return subset is XmlElement ? (subset.namespacePrefix ?? '') : '';
 }
 
-List<XmlNamespace> _collectAncestorNamespaces(XmlNode node,
-    [List<XmlNamespace>? nsArray]) {
+List<XmlNamespace> _collectAncestorNamespaces(
+  XmlNode node, [
+  List<XmlNamespace>? nsArray,
+]) {
   nsArray ??= [];
 
   var parent = node.parent;
@@ -122,6 +126,7 @@ class SignedXml {
     'http://www.w3.org/2000/09/xmldsig#rsa-sha1': RSASHA1(),
     'http://www.w3.org/2001/04/xmldsig-more#rsa-sha256': RSASHA256(),
     'http://www.w3.org/2001/04/xmldsig-more#rsa-sha512': RSASHA512(),
+    'http://www.w3.org/2001/04/xmldsig-more#ecdsa-sha256': ECDSASHA256(),
     // Disabled by default due to key confusion concerns.
     // 'http://www.w3.org/2000/09/xmldsig#hmac-sha1': HMACSHA1,
   };
@@ -156,7 +161,8 @@ class SignedXml {
   /// [idMode]. Value of "wssecurity" will create/validate id's with the ws-security namespace
   /// [options]. Initial configurations
   SignedXml([this.idMode = '', this.options = const {}]) {
-    signatureAlgorithm = options['signatureAlgorithm'] as String? ??
+    signatureAlgorithm =
+        options['signatureAlgorithm'] as String? ??
         'http://www.w3.org/2000/09/xmldsig#rsa-sha1';
     canonicalizationAlgorithm =
         options['canonicalizationAlgorithm'] as String? ??
@@ -185,7 +191,8 @@ class SignedXml {
 
     if (keyInfoProvider == null) {
       final err = ArgumentError(
-          'cannot validate signature since no key info resolver was provided');
+        'cannot validate signature since no key info resolver was provided',
+      );
       if (callback == null) {
         throw err;
       } else {
@@ -197,7 +204,8 @@ class SignedXml {
     signingKey = keyInfoProvider!.getKey(keyInfo);
     if (signingKey == null) {
       final err = ArgumentError(
-          'key info provider could not resolve key info $keyInfo');
+        'key info provider could not resolve key info $keyInfo',
+      );
       if (callback == null) {
         throw err;
       } else {
@@ -222,14 +230,16 @@ class SignedXml {
     }
 
     // unsigned, verify later to keep with consistent callback behavior
-    final parsedUnverifiedSignedInfo =
-        parseFromString(unverifiedSignedInfoCanon);
+    final parsedUnverifiedSignedInfo = parseFromString(
+      unverifiedSignedInfoCanon,
+    );
     final unverifiedSignedInfoDoc = parsedUnverifiedSignedInfo.document;
     if (unverifiedSignedInfoDoc == null) {
       if (callback != null) {
         callback(
           ArgumentError('Could not parse signedInfoCanon into a document'),
-            false);
+          false,
+        );
         return false;
       }
 
@@ -271,7 +281,8 @@ class SignedXml {
       _validateSignatureValue(doc, (Error? err, bool isValidSignature) {
         if (err != null) {
           validationErrors.add(
-              'invalid signature: the signature value $signatureValue is incorrect');
+            'invalid signature: the signature value $signatureValue is incorrect',
+          );
           callback(err, false);
         } else {
           callback(null, isValidSignature);
@@ -292,7 +303,8 @@ class SignedXml {
     }
     if (signedInfo.length > 1) {
       throw ArgumentError(
-          'could not get canonicalized signed info for a signature that contains multiple SignedInfo nodes');
+        'could not get canonicalized signed info for a signature that contains multiple SignedInfo nodes',
+      );
     }
 
     // Since in Dart the doc is always a XmlDocument
@@ -312,7 +324,10 @@ class SignedXml {
       'ancestorNamespaces': ancestorNamespaces,
     };
     return _getCanonXml(
-        [canonicalizationAlgorithm], signedInfo.first, c14nOptions);
+      [canonicalizationAlgorithm],
+      signedInfo.first,
+      c14nOptions,
+    );
   }
 
   String _getCanonReferenceXml(XmlDocument doc, _Reference ref, XmlNode node) {
@@ -331,25 +346,37 @@ class SignedXml {
     return _getCanonXml(ref.transforms, node, c14nOptions);
   }
 
-  bool _validateSignatureValue(XmlDocument doc,
-      [ValidateSignatureCallback? callback]) {
+  bool _validateSignatureValue(
+    XmlDocument doc, [
+    ValidateSignatureCallback? callback,
+  ]) {
     final signedInfoCanon = _getCanonSignedInfoXml(doc);
     final signer = _findSignatureAlgorithm(signatureAlgorithm);
     final res = signer.verifySignature(
-        signedInfoCanon, signingKey!, signatureValue, callback);
+      signedInfoCanon,
+      signingKey!,
+      signatureValue,
+      callback,
+    );
     if (!res && callback == null) {
       validationErrors.add(
-          'invalid signature: the signature value $signatureValue is incorrect');
+        'invalid signature: the signature value $signatureValue is incorrect',
+      );
     }
     return res;
   }
 
-  void _calculateSignatureValue(XmlDocument doc,
-      [CalculateSignatureCallback? callback]) {
+  void _calculateSignatureValue(
+    XmlDocument doc, [
+    CalculateSignatureCallback? callback,
+  ]) {
     final signedInfoCanon = _getCanonSignedInfoXml(doc);
     final signer = _findSignatureAlgorithm(signatureAlgorithm);
-    signatureValue =
-        signer.getSignature(signedInfoCanon, signingKey!, callback);
+    signatureValue = signer.getSignature(
+      signedInfoCanon,
+      signingKey!,
+      callback,
+    );
   }
 
   SignatureAlgorithm _findSignatureAlgorithm(String name) {
@@ -367,7 +394,8 @@ class SignedXml {
       return algo;
     } else {
       throw UnsupportedError(
-          'canonicalization algorithm $name is not supported');
+        'canonicalization algorithm $name is not supported',
+      );
     }
   }
 
@@ -404,8 +432,9 @@ class SignedXml {
         if (numElementsForId > 1) {
           throw ArgumentError(
             'Cannot validate a document which contains multiple elements with the '
-              'same value for the ID / Id / Id attributes, in order to prevent '
-              'signature wrapping attack.');
+            'same value for the ID / Id / Id attributes, in order to prevent '
+            'signature wrapping attack.',
+          );
         }
 
         ref.xpath = elemXpath;
@@ -414,7 +443,8 @@ class SignedXml {
       if (elem.isEmpty) {
         validationErrors.add(
           'invalid signature: the signature references an element'
-            ' with uri ${ref.uri} but could not find such element in the xml');
+          ' with uri ${ref.uri} but could not find such element in the xml',
+        );
         return false;
       }
 
@@ -422,9 +452,11 @@ class SignedXml {
       final hash = _findHashAlgorithm(ref.digestAlgorithm);
       final digest = hash.getHash(canonXml);
       if (!_validateDigestValue(digest, ref.digestValue)) {
-        validationErrors.add('invalid signature: for uri ${ref.uri}'
+        validationErrors.add(
+          'invalid signature: for uri ${ref.uri}'
           ' calculated digest is $digest'
-            ' but the xml to validate supplies digest ${ref.digestValue}');
+          ' but the xml to validate supplies digest ${ref.digestValue}',
+        );
         return false;
       }
     }
@@ -444,8 +476,9 @@ class SignedXml {
 
   void loadSignature(dynamic signatureNode) {
     if (signatureNode is String) {
-      _signatureNode =
-          signatureNode = parseFromString(signatureNode).rootElement;
+      _signatureNode = signatureNode = parseFromString(
+        signatureNode,
+      ).rootElement;
     } else {
       _signatureNode = signatureNode;
     }
@@ -462,7 +495,8 @@ class SignedXml {
     }
     if (signedInfoNodes.length > 1) {
       throw ArgumentError(
-          'could not load signature that contains multiple SignedInfo nodes');
+        'could not load signature that contains multiple SignedInfo nodes',
+      );
     }
 
     final canonicalizationMethodNodes = findChilds(
@@ -514,12 +548,12 @@ class SignedXml {
           "http://www.w3.org/2001/10/xml-exc-c14n#";
     }
 
-    final temporaryCanonSignedInfo = _getCanonXml(
-      [canonicalizationAlgorithmForSignedInfo],
-      signedInfoNodes.first,
+    final temporaryCanonSignedInfo = _getCanonXml([
+      canonicalizationAlgorithmForSignedInfo,
+    ], signedInfoNodes.first);
+    final temporaryCanonSignedInfoXml = parseFromString(
+      temporaryCanonSignedInfo,
     );
-    final temporaryCanonSignedInfoXml =
-        parseFromString(temporaryCanonSignedInfo);
     final signedInfoDoc = temporaryCanonSignedInfoXml.rootElement;
 
     this.references.clear();
@@ -560,7 +594,8 @@ class SignedXml {
     final attr = findAttr(digestAlgoNode, 'Algorithm');
     if (attr == null) {
       throw ArgumentError(
-          'could not find Algorithm attribute in node $digestAlgoNode');
+        'could not find Algorithm attribute in node $digestAlgoNode',
+      );
     }
     final digestAlgo = attr.value;
 
@@ -571,7 +606,8 @@ class SignedXml {
 
     if (nodes.length > 1) {
       throw ArgumentError(
-          'could not load reference for a node that contains multiple DigestValue nodes: $ref');
+        'could not load reference for a node that contains multiple DigestValue nodes: $ref',
+      );
     }
 
     final digestValue = nodes.first.innerText;
@@ -593,16 +629,19 @@ class SignedXml {
         transforms.add(findAttr(trans, 'Algorithm')?.value ?? '');
       }
 
-      final inclusiveNamespaces =
-          findChilds(transformsAll.last, 'InclusiveNamespaces');
+      final inclusiveNamespaces = findChilds(
+        transformsAll.last,
+        'InclusiveNamespaces',
+      );
       //Should really only be one prefix list, but maybe there's some circumstances where more than one to lets handle it
       for (final inclusiveNamespace in inclusiveNamespaces) {
         if (inclusiveNamespacesPrefixList != null) {
           inclusiveNamespacesPrefixList +=
               ' ${inclusiveNamespace.getAttribute('PrefixList') ?? ''}';
         } else {
-          inclusiveNamespacesPrefixList =
-              inclusiveNamespace.getAttribute('PrefixList');
+          inclusiveNamespacesPrefixList = inclusiveNamespace.getAttribute(
+            'PrefixList',
+          );
         }
       }
     }
@@ -628,8 +667,15 @@ class SignedXml {
     }
 
     final refUri = ref.getAttribute('URI');
-    addReference(null, transforms, digestAlgo, refUri, digestValue,
-        inclusiveNamespacesPrefixList, false);
+    addReference(
+      null,
+      transforms,
+      digestAlgo,
+      refUri,
+      digestValue,
+      inclusiveNamespacesPrefixList,
+      false,
+    );
   }
 
   void addReference(
@@ -670,8 +716,11 @@ class SignedXml {
   ///   contain a XPath expression, an `action` key which
   ///   should contain one of the following values:
   ///   `append`, `prepend`, `before`, `after`
-  void computeSignature(String xml,
-      {Map<String, dynamic>? opts, ComputeSignatureCallback? callback}) {
+  void computeSignature(
+    String xml, {
+    Map<String, dynamic>? opts,
+    ComputeSignatureCallback? callback,
+  }) {
     final doc = parseFromString(xml);
     var xmlNsAttr = 'xmlns';
     final signatureAttrs = <String>[];
@@ -701,7 +750,8 @@ class SignedXml {
     if (!validActions.contains(location['action'])) {
       final err = ArgumentError(
         'location.action option has an invalid action:  ${location['action']},'
-          'must be any of the following values: ${validActions.join(', ')}');
+        'must be any of the following values: ${validActions.join(', ')}',
+      );
       if (callback == null) {
         throw err;
       } else {
@@ -752,7 +802,8 @@ class SignedXml {
     final referenceNodeQuery = findNodes(doc, location['reference']!);
     if (referenceNodeQuery.isEmpty) {
       final err = ArgumentError(
-          'the following xpath cannot be used because it was not found: ${location['reference']}');
+        'the following xpath cannot be used because it was not found: ${location['reference']}',
+      );
       if (callback == null) {
         throw err;
       } else {
@@ -785,8 +836,9 @@ class SignedXml {
     _signatureNode = signatureDoc;
     final signedInfoNodeQuery = findChilds(_signatureNode!, 'SignedInfo');
     if (signedInfoNodeQuery.isEmpty) {
-      final err =
-          ArgumentError('could not find SignedInfo element in the message');
+      final err = ArgumentError(
+        'could not find SignedInfo element in the message',
+      );
       if (callback == null) {
         throw err;
       } else {
@@ -877,7 +929,9 @@ class SignedXml {
         }
 
         if (nodes.isEmpty) {
-          throw ArgumentError('the following xpath cannot be signed because it was not found: ${ref.xpath}');
+          throw ArgumentError(
+            'the following xpath cannot be signed because it was not found: ${ref.xpath}',
+          );
         }
       }
 
@@ -893,13 +947,15 @@ class SignedXml {
         for (final trans in ref.transforms) {
           final transform = _findCanonicalizationAlgorithm(trans);
           res.write(
-              '<${prefix}Transform Algorithm="${transform.algorithmName}"');
+            '<${prefix}Transform Algorithm="${transform.algorithmName}"',
+          );
           final prefixList = ref.inclusiveNamespacesPrefixList;
           if (prefixList?.isNotEmpty == true) {
             res
               ..write('>')
               ..write(
-                  '<InclusiveNamespaces PrefixList="$prefixList" xmlns="${transform.algorithmName}"/>')
+                '<InclusiveNamespaces PrefixList="$prefixList" xmlns="${transform.algorithmName}"/>',
+              )
               ..write('</${prefix}Transform>');
           } else {
             res.write(' />');
@@ -911,17 +967,22 @@ class SignedXml {
         res
           ..write('</${prefix}Transforms>')
           ..write(
-              '<${prefix}DigestMethod Algorithm="${digestAlgorithm.algorithmName}" />')
+            '<${prefix}DigestMethod Algorithm="${digestAlgorithm.algorithmName}" />',
+          )
           ..write(
-              '<${prefix}DigestValue>${digestAlgorithm.getHash(canonXml)}</${prefix}DigestValue>')
+            '<${prefix}DigestValue>${digestAlgorithm.getHash(canonXml)}</${prefix}DigestValue>',
+          )
           ..write('</${prefix}Reference>');
       }
     }
     return res.toString();
   }
 
-  String _getCanonXml(List<String> transforms, XmlNode node,
-      [Map<String, dynamic>? options]) {
+  String _getCanonXml(
+    List<String> transforms,
+    XmlNode node, [
+    Map<String, dynamic>? options,
+  ]) {
     options = options ?? {};
     if (options['defaultNsForPrefix'] == null) {
       options['defaultNsForPrefix'] = defaultNsForPrefix;
@@ -987,19 +1048,22 @@ class SignedXml {
 
     final res = StringBuffer('<${currentPrefix}SignedInfo>')
       ..write(
-          '<${currentPrefix}CanonicalizationMethod Algorithm="${transform.algorithmName}"');
+        '<${currentPrefix}CanonicalizationMethod Algorithm="${transform.algorithmName}"',
+      );
     if (inclusiveNamespacesPrefixList.isNotEmpty) {
       res
         ..write('>')
         ..write(
-            '<InclusiveNamespaces PrefixList="$inclusiveNamespacesPrefixList" xmlns="${transform.algorithmName}"/>')
+          '<InclusiveNamespaces PrefixList="$inclusiveNamespacesPrefixList" xmlns="${transform.algorithmName}"/>',
+        )
         ..write('</${currentPrefix}CanonicalizationMethod>');
     } else {
       res.write(' />');
     }
     res
       ..write(
-          '<${currentPrefix}SignatureMethod Algorithm="${algo.algorithmName}" />')
+        '<${currentPrefix}SignatureMethod Algorithm="${algo.algorithmName}" />',
+      )
       ..write(_createReference(doc, prefix))
       ..write('</${currentPrefix}SignedInfo>');
     return res.toString();
@@ -1055,14 +1119,16 @@ class FileKeyInfo implements KeyInfoProvider {
   @override
   String getKeyInfo(Uint8List? signingKey, String? prefix) {
     var currentPrefix = prefix ?? '';
-    currentPrefix =
-        currentPrefix.isNotEmpty ? '$currentPrefix:' : currentPrefix;
+    currentPrefix = currentPrefix.isNotEmpty
+        ? '$currentPrefix:'
+        : currentPrefix;
     final signingCert = StringBuffer();
     if (signingKey != null) {
       final certArray = [signingKey];
       for (var cert in certArray) {
         signingCert.write(
-            "<${currentPrefix}X509Certificate>${base64Encode(cert)}</${currentPrefix}X509Certificate>");
+          "<${currentPrefix}X509Certificate>${base64Encode(cert)}</${currentPrefix}X509Certificate>",
+        );
       }
     }
     return '<${currentPrefix}X509Data>${signingCert.toString()}</${currentPrefix}X509Data>';
@@ -1117,11 +1183,18 @@ class SHA512 implements HashAlgorithm {
 abstract class SignatureAlgorithm {
   String get algorithmName;
 
-  String getSignature(String xml, Uint8List signingKey,
-      [CalculateSignatureCallback? callback]);
+  String getSignature(
+    String xml,
+    Uint8List signingKey, [
+    CalculateSignatureCallback? callback,
+  ]);
 
-  bool verifySignature(String xml, Uint8List key, String signatureValue,
-      [ValidateSignatureCallback? callback]);
+  bool verifySignature(
+    String xml,
+    Uint8List key,
+    String signatureValue, [
+    ValidateSignatureCallback? callback,
+  ]);
 }
 
 class RSASHA1 implements SignatureAlgorithm {
@@ -1129,25 +1202,37 @@ class RSASHA1 implements SignatureAlgorithm {
   String get algorithmName => 'http://www.w3.org/2000/09/xmldsig#rsa-sha1';
 
   @override
-  String getSignature(String xml, Uint8List signingKey,
-      [CalculateSignatureCallback? callback]) {
+  String getSignature(
+    String xml,
+    Uint8List signingKey, [
+    CalculateSignatureCallback? callback,
+  ]) {
     final rsa = RSAPrivateKey.fromPEM(utf8.decode(signingKey));
-    final raw =
-        rsa.signSsaPkcs1v15ToBase64(utf8.encode(xml), hasher: EmsaHasher.sha1);
+    final raw = rsa.signSsaPkcs1v15ToBase64(
+      utf8.encode(xml),
+      hasher: EmsaHasher.sha1,
+    );
     final res = normalizeRsaSignatureBase64(raw, rsa.n);
     if (callback != null) callback(null, res);
     return res;
   }
 
   @override
-  bool verifySignature(String xml, Uint8List key, String signatureValue,
-      [ValidateSignatureCallback? callback]) {
+  bool verifySignature(
+    String xml,
+    Uint8List key,
+    String signatureValue, [
+    ValidateSignatureCallback? callback,
+  ]) {
     final parser = RSAPKCSParser();
     final puk = parser.parsePEM(utf8.decode(key)).public;
     if (puk == null) throw ArgumentError('Invalid public key');
     final rsa = RSAPublicKey(puk.modulus, BigInt.from(puk.publicExponent));
-    final res =
-        rsa.verifySsaPkcs1v15(signatureValue, xml, hasher: EmsaHasher.sha1);
+    final res = rsa.verifySsaPkcs1v15(
+      signatureValue,
+      xml,
+      hasher: EmsaHasher.sha1,
+    );
     if (callback != null) callback(null, res);
     return res;
   }
@@ -1159,25 +1244,37 @@ class RSASHA256 implements SignatureAlgorithm {
       'http://www.w3.org/2001/04/xmldsig-more#rsa-sha256';
 
   @override
-  String getSignature(String xml, Uint8List signingKey,
-      [CalculateSignatureCallback? callback]) {
+  String getSignature(
+    String xml,
+    Uint8List signingKey, [
+    CalculateSignatureCallback? callback,
+  ]) {
     final rsa = RSAPrivateKey.fromPEM(utf8.decode(signingKey));
-    final raw = rsa.signSsaPkcs1v15ToBase64(utf8.encode(xml),
-        hasher: EmsaHasher.sha256);
+    final raw = rsa.signSsaPkcs1v15ToBase64(
+      utf8.encode(xml),
+      hasher: EmsaHasher.sha256,
+    );
     final res = normalizeRsaSignatureBase64(raw, rsa.n);
     if (callback != null) callback(null, res);
     return res;
   }
 
   @override
-  bool verifySignature(String xml, Uint8List key, String signatureValue,
-      [ValidateSignatureCallback? callback]) {
+  bool verifySignature(
+    String xml,
+    Uint8List key,
+    String signatureValue, [
+    ValidateSignatureCallback? callback,
+  ]) {
     final parser = RSAPKCSParser();
     final puk = parser.parsePEM(utf8.decode(key)).public;
     if (puk == null) throw ArgumentError('Invalid public key');
     final rsa = RSAPublicKey(puk.modulus, BigInt.from(puk.publicExponent));
-    final res =
-        rsa.verifySsaPkcs1v15(signatureValue, xml, hasher: EmsaHasher.sha256);
+    final res = rsa.verifySsaPkcs1v15(
+      signatureValue,
+      xml,
+      hasher: EmsaHasher.sha256,
+    );
     if (callback != null) callback(null, res);
     return res;
   }
@@ -1189,25 +1286,85 @@ class RSASHA512 implements SignatureAlgorithm {
       'http://www.w3.org/2001/04/xmldsig-more#rsa-sha512';
 
   @override
-  String getSignature(String xml, Uint8List signingKey,
-      [CalculateSignatureCallback? callback]) {
+  String getSignature(
+    String xml,
+    Uint8List signingKey, [
+    CalculateSignatureCallback? callback,
+  ]) {
     final rsa = RSAPrivateKey.fromPEM(utf8.decode(signingKey));
-    final raw = rsa.signSsaPkcs1v15ToBase64(utf8.encode(xml),
-        hasher: EmsaHasher.sha512);
+    final raw = rsa.signSsaPkcs1v15ToBase64(
+      utf8.encode(xml),
+      hasher: EmsaHasher.sha512,
+    );
     final res = normalizeRsaSignatureBase64(raw, rsa.n);
     if (callback != null) callback(null, res);
     return res;
   }
 
   @override
-  bool verifySignature(String xml, Uint8List key, String signatureValue,
-      [ValidateSignatureCallback? callback]) {
+  bool verifySignature(
+    String xml,
+    Uint8List key,
+    String signatureValue, [
+    ValidateSignatureCallback? callback,
+  ]) {
     final parser = RSAPKCSParser();
     final puk = parser.parsePEM(utf8.decode(key)).public;
     if (puk == null) throw ArgumentError('Invalid public key');
     final rsa = RSAPublicKey(puk.modulus, BigInt.from(puk.publicExponent));
-    final res =
-        rsa.verifySsaPkcs1v15(signatureValue, xml, hasher: EmsaHasher.sha512);
+    final res = rsa.verifySsaPkcs1v15(
+      signatureValue,
+      xml,
+      hasher: EmsaHasher.sha512,
+    );
+    if (callback != null) callback(null, res);
+    return res;
+  }
+}
+
+class ECDSASHA256 implements SignatureAlgorithm {
+  @override
+  String get algorithmName =>
+      'http://www.w3.org/2001/04/xmldsig-more#ecdsa-sha256';
+
+  @override
+  String getSignature(
+    String xml,
+    Uint8List signingKey, [
+    CalculateSignatureCallback? callback,
+  ]) {
+    final privateKey = CryptoUtils.ecPrivateKeyFromPem(utf8.decode(signingKey));
+    final rawSignature = CryptoUtils.ecSign(
+      privateKey,
+      Uint8List.fromList(utf8.encode(xml)),
+      algorithmName: 'SHA-256/DET-ECDSA',
+    );
+    final res = _encodeEcSignatureBase64(
+      rawSignature,
+      privateKey.parameters!.n,
+    );
+    if (callback != null) callback(null, res);
+    return res;
+  }
+
+  @override
+  bool verifySignature(
+    String xml,
+    Uint8List key,
+    String signatureValue, [
+    ValidateSignatureCallback? callback,
+  ]) {
+    final publicKey = CryptoUtils.ecPublicKeyFromPem(utf8.decode(key));
+    final rawSignature = _decodeEcSignatureBase64(
+      signatureValue,
+      publicKey.parameters!.n,
+    );
+    final res = CryptoUtils.ecVerify(
+      publicKey,
+      Uint8List.fromList(utf8.encode(xml)),
+      rawSignature,
+      algorithm: 'SHA-256/ECDSA',
+    );
     if (callback != null) callback(null, res);
     return res;
   }
@@ -1218,18 +1375,85 @@ class HMACSHA1 implements SignatureAlgorithm {
   String get algorithmName => 'http://www.w3.org/2000/09/xmldsig#hmac-sha1';
 
   @override
-  String getSignature(String xml, Uint8List signingKey,
-      [CalculateSignatureCallback? callback]) {
+  String getSignature(
+    String xml,
+    Uint8List signingKey, [
+    CalculateSignatureCallback? callback,
+  ]) {
     final hmac = Hmac(sha1, signingKey);
     return base64Encode(hmac.convert(utf8.encode(xml)).bytes);
   }
 
   @override
-  bool verifySignature(String xml, Uint8List key, String signatureValue,
-      [ValidateSignatureCallback? callback]) {
+  bool verifySignature(
+    String xml,
+    Uint8List key,
+    String signatureValue, [
+    ValidateSignatureCallback? callback,
+  ]) {
     final hmac = Hmac(sha1, key);
     return base64Encode(hmac.convert(utf8.encode(xml)).bytes) == signatureValue;
   }
+}
+
+String _encodeEcSignatureBase64(ECSignature signature, BigInt order) {
+  final componentLength = (order.bitLength + 7) ~/ 8;
+  final rawSignature = Uint8List(componentLength * 2)
+    ..setRange(
+      0,
+      componentLength,
+      _encodeBigIntToFixedLength(signature.r, componentLength),
+    )
+    ..setRange(
+      componentLength,
+      componentLength * 2,
+      _encodeBigIntToFixedLength(signature.s, componentLength),
+    );
+  return base64Encode(rawSignature);
+}
+
+ECSignature _decodeEcSignatureBase64(String signatureValue, BigInt order) {
+  final rawSignature = base64Decode(signatureValue);
+  final expectedComponentLength = (order.bitLength + 7) ~/ 8;
+  final componentLength = rawSignature.length == expectedComponentLength * 2
+      ? expectedComponentLength
+      : rawSignature.length ~/ 2;
+  if (rawSignature.length.isOdd || componentLength == 0) {
+    throw ArgumentError('Invalid ECDSA signature value');
+  }
+  return ECSignature(
+    _decodeBigInt(rawSignature.sublist(0, componentLength)),
+    _decodeBigInt(rawSignature.sublist(componentLength)),
+  );
+}
+
+Uint8List _encodeBigIntToFixedLength(BigInt value, int length) {
+  final bytes = _encodeBigInt(value);
+  if (bytes.length > length) {
+    throw ArgumentError('Value is too large to fit in $length bytes');
+  }
+
+  return Uint8List(length)..setRange(length - bytes.length, length, bytes);
+}
+
+Uint8List _encodeBigInt(BigInt value) {
+  final hex = value.toRadixString(16).padLeft(2, '0');
+  final normalizedHex = hex.length.isOdd ? '0$hex' : hex;
+  return Uint8List.fromList([
+    for (var i = 0; i < normalizedHex.length; i += 2)
+      int.parse(normalizedHex.substring(i, i + 2), radix: 16),
+  ]);
+}
+
+BigInt _decodeBigInt(List<int> bytes) {
+  if (bytes.isEmpty) {
+    return BigInt.zero;
+  }
+
+  final hex = bytes
+      .map((byte) => byte.toRadixString(16).padLeft(2, '0'))
+      .join();
+  return BigInt.parse(hex, radix: 16);
 }
 
 class _Reference {
@@ -1242,6 +1466,13 @@ class _Reference {
   final bool isEmptyUri;
   List<dynamic>? ancestorNamespaces;
 
-  _Reference(this.xpath, this.transforms, this.digestAlgorithm, this.uri,
-      this.digestValue, this.inclusiveNamespacesPrefixList, this.isEmptyUri);
+  _Reference(
+    this.xpath,
+    this.transforms,
+    this.digestAlgorithm,
+    this.uri,
+    this.digestValue,
+    this.inclusiveNamespacesPrefixList,
+    this.isEmptyUri,
+  );
 }

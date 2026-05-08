@@ -33,6 +33,7 @@ Install:
 * RSA-SHA1 http://www.w3.org/2000/09/xmldsig#rsa-sha1
 * RSA-SHA256 http://www.w3.org/2001/04/xmldsig-more#rsa-sha256
 * RSA-SHA512 http://www.w3.org/2001/04/xmldsig-more#rsa-sha512
+* ECDSA-SHA256 http://www.w3.org/2001/04/xmldsig-more#ecdsa-sha256
 
 HMAC-SHA1 is also available but it is disabled by default
 * HMAC-SHA1 http://www.w3.org/2000/09/xmldsig#hmac-sha1
