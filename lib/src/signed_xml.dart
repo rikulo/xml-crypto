@@ -6,9 +6,11 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:basic_utils/basic_utils.dart' show CryptoUtils;
 import 'package:crypto/crypto.dart';
 import 'package:ninja/asymmetric/rsa/encoder/emsaPkcs1v15.dart';
 import 'package:ninja/ninja.dart';
+import 'package:pointycastle/ecc/api.dart' show ECSignature;
 import 'package:rsa_pkcs/rsa_pkcs.dart' show RSAPKCSParser;
 import 'package:xml/xml.dart' hide XmlNamespace;
 
@@ -122,6 +124,7 @@ class SignedXml {
     'http://www.w3.org/2000/09/xmldsig#rsa-sha1': RSASHA1(),
     'http://www.w3.org/2001/04/xmldsig-more#rsa-sha256': RSASHA256(),
     'http://www.w3.org/2001/04/xmldsig-more#rsa-sha512': RSASHA512(),
+    'http://www.w3.org/2001/04/xmldsig-more#ecdsa-sha256': ECDSASHA256(),
     // Disabled by default due to key confusion concerns.
     // 'http://www.w3.org/2000/09/xmldsig#hmac-sha1': HMACSHA1,
   };
@@ -1213,6 +1216,59 @@ class RSASHA512 implements SignatureAlgorithm {
   }
 }
 
+class ECDSASHA256 implements SignatureAlgorithm {
+  @override
+  String get algorithmName =>
+      'http://www.w3.org/2001/04/xmldsig-more#ecdsa-sha256';
+
+  @override
+  String getSignature(String xml, Uint8List signingKey,
+      [CalculateSignatureCallback? callback]) {
+    final privateKey = CryptoUtils.ecPrivateKeyFromPem(utf8.decode(signingKey));
+    final rawSignature = CryptoUtils.ecSign(
+      privateKey,
+      Uint8List.fromList(utf8.encode(xml)),
+      algorithmName: 'SHA-256/DET-ECDSA',
+    );
+    final encodedSignature =
+        _encodeEcSignatureBase64(rawSignature, privateKey.parameters!.n);
+    if (callback != null) callback(null, encodedSignature);
+    return encodedSignature;
+  }
+
+  @override
+  bool verifySignature(String xml, Uint8List key, String signatureValue,
+      [ValidateSignatureCallback? callback]) {
+    try {
+      final publicKey = CryptoUtils.ecPublicKeyFromPem(utf8.decode(key));
+      final rawSignature =
+          _decodeEcSignatureBase64(signatureValue, publicKey.parameters!.n);
+      final isValid = CryptoUtils.ecVerify(
+        publicKey,
+        Uint8List.fromList(utf8.encode(xml)),
+        rawSignature,
+        algorithm: 'SHA-256/DET-ECDSA',
+      );
+      if (callback != null) callback(null, isValid);
+      return isValid;
+    } catch (e) {
+      if (callback != null) {
+        callback(
+          e is Error
+              ? e
+              : ArgumentError.value(
+                  signatureValue,
+                  'signatureValue',
+                  e.toString(),
+                ),
+          false,
+        );
+      }
+      return false;
+    }
+  }
+}
+
 class HMACSHA1 implements SignatureAlgorithm {
   @override
   String get algorithmName => 'http://www.w3.org/2000/09/xmldsig#hmac-sha1';
@@ -1230,6 +1286,75 @@ class HMACSHA1 implements SignatureAlgorithm {
     final hmac = Hmac(sha1, key);
     return base64Encode(hmac.convert(utf8.encode(xml)).bytes) == signatureValue;
   }
+}
+
+/// Encodes an ECDSA signature into the XMLDSIG raw `r || s` format, padding
+/// both components to the byte length of the curve order.
+String _encodeEcSignatureBase64(ECSignature signature, BigInt order) {
+  final componentLength = _ecComponentLength(order);
+  final rawSignature = Uint8List(componentLength * 2)
+    ..setRange(0, componentLength,
+        _encodeBigIntToFixedLength(signature.r, componentLength))
+    ..setRange(componentLength, componentLength * 2,
+        _encodeBigIntToFixedLength(signature.s, componentLength));
+  return base64Encode(rawSignature);
+}
+
+/// Decodes an XMLDSIG raw `r || s` ECDSA signature. It also tolerates
+/// non-standard inputs that omit leading zero octets from each component.
+ECSignature _decodeEcSignatureBase64(String signatureValue, BigInt order) {
+  final rawSignature = base64Decode(signatureValue);
+  final expectedComponentLength = _ecComponentLength(order);
+  // Some implementations omit leading zero octets from the raw r || s value.
+  // Accept those values by falling back to splitting the signature in half.
+  final componentLength = rawSignature.length == expectedComponentLength * 2
+      ? expectedComponentLength
+      : rawSignature.length ~/ 2;
+  if (rawSignature.length.isOdd) {
+    throw ArgumentError(
+        'Invalid ECDSA signature: signature must have an even length');
+  }
+  if (componentLength == 0) {
+    throw ArgumentError(
+        'Invalid ECDSA signature: signature components must be non-empty');
+  }
+  return ECSignature(
+    _decodeBigInt(rawSignature.sublist(0, componentLength)),
+    _decodeBigInt(rawSignature.sublist(componentLength)),
+  );
+}
+
+/// Encodes a BigInt as a fixed-length big-endian byte array with leading zero
+/// padding when required by XMLDSIG.
+Uint8List _encodeBigIntToFixedLength(BigInt value, int length) {
+  if (value.isNegative) {
+    throw ArgumentError('ECDSA signature components must be non-negative');
+  }
+  final hex = value.toRadixString(16);
+  final normalizedHex = hex.length.isOdd ? '0$hex' : hex;
+  final bytes = Uint8List.fromList([
+    for (var i = 0; i < normalizedHex.length; i += 2)
+      int.parse(normalizedHex.substring(i, i + 2), radix: 16),
+  ]);
+  if (bytes.length > length) {
+    throw ArgumentError(
+        'Value requires ${bytes.length} bytes but only $length bytes are allowed');
+  }
+
+  return Uint8List(length)..setRange(length - bytes.length, length, bytes);
+}
+
+/// Returns the fixed byte length of an ECDSA signature component for the given
+/// curve order.
+int _ecComponentLength(BigInt order) => (order.bitLength + 7) ~/ 8;
+
+/// Decodes a big-endian byte array into a BigInt.
+BigInt _decodeBigInt(List<int> bytes) {
+  if (bytes.isEmpty) return BigInt.zero;
+
+  final hex =
+      bytes.map((byte) => byte.toRadixString(16).padLeft(2, '0')).join();
+  return BigInt.parse(hex, radix: 16);
 }
 
 class _Reference {
