@@ -10,7 +10,7 @@ import 'package:basic_utils/basic_utils.dart' show CryptoUtils;
 import 'package:crypto/crypto.dart';
 import 'package:ninja/asymmetric/rsa/encoder/emsaPkcs1v15.dart';
 import 'package:ninja/ninja.dart';
-import 'package:pointycastle/ecc/api.dart';
+import 'package:pointycastle/ecc/api.dart' show ECSignature;
 import 'package:rsa_pkcs/rsa_pkcs.dart' show RSAPKCSParser;
 import 'package:xml/xml.dart' hide XmlNamespace;
 
@@ -1239,17 +1239,33 @@ class ECDSASHA256 implements SignatureAlgorithm {
   @override
   bool verifySignature(String xml, Uint8List key, String signatureValue,
       [ValidateSignatureCallback? callback]) {
-    final publicKey = CryptoUtils.ecPublicKeyFromPem(utf8.decode(key));
-    final rawSignature =
-        _decodeEcSignatureBase64(signatureValue, publicKey.parameters!.n);
-    final isValid = CryptoUtils.ecVerify(
-      publicKey,
-      Uint8List.fromList(utf8.encode(xml)),
-      rawSignature,
-      algorithm: 'SHA-256/DET-ECDSA',
-    );
-    if (callback != null) callback(null, isValid);
-    return isValid;
+    try {
+      final publicKey = CryptoUtils.ecPublicKeyFromPem(utf8.decode(key));
+      final rawSignature =
+          _decodeEcSignatureBase64(signatureValue, publicKey.parameters!.n);
+      final isValid = CryptoUtils.ecVerify(
+        publicKey,
+        Uint8List.fromList(utf8.encode(xml)),
+        rawSignature,
+        algorithm: 'SHA-256/DET-ECDSA',
+      );
+      if (callback != null) callback(null, isValid);
+      return isValid;
+    } catch (e) {
+      if (callback != null) {
+        callback(
+          e is Error
+              ? e
+              : ArgumentError.value(
+                  signatureValue,
+                  'signatureValue',
+                  e.toString(),
+                ),
+          false,
+        );
+      }
+      return false;
+    }
   }
 }
 
